@@ -12,9 +12,9 @@ The main session orchestrates: planner -> (per milestone) builder -> designer ->
 
 ## Conventions
 - Keep the routes exactly: `/`, `/category/[slug]` (+ `/category/all`), `/product/[slug]`, `/cart`, `/checkout`, `/confirmation`, `/demo-controls`.
-- Design tokens: `docs/DESIGN_TOKENS.md`, implemented as the `@theme` in `app/globals.css`. Use only token classes (no hex, no default Tailwind palette, no arbitrary values). The only exception is the SVG renderer. System font stack, light theme only.
+- Design tokens: `docs/DESIGN_TOKENS.md`, implemented as the `@theme` in `app/globals.css`. Use only token classes (no hex, no default Tailwind palette, no arbitrary values; use the `xs` breakpoint, not `min-[360px]:`). The only exception is the SVG renderer. System font stack, light theme only.
 - This Next.js version has breaking changes: read `AGENTS.md` and `node_modules/next/dist/docs/` before writing Next code. `cacheComponents` stays off (`next.config.ts`).
-- Cart: use `useCart()` / `useCartUi()` from `lib/cart/CartProvider.tsx` (localStorage `tw-cart-v1`). All money maths goes through `lib/pricing.ts`.
+- Cart: use `useCart()` / `useCartUi()` from `lib/cart/CartProvider.tsx` (localStorage `tw-cart-v1`). All money maths goes through `lib/pricing.ts`. Last order: sessionStorage `tw-last-order` (`lib/order.ts`); checkout validation: `lib/checkout/validation.ts`.
 - Friction items are intentional and flag-gated (`lib/config.ts`); do not "fix" them.
 - Stable `data-testid`s per PLAN section 8 (mobile nav: `mobile-menu-button`, `mobile-nav-link-<slug>`).
 - No real payment handling. No third-party imagery; SVG placeholders only.

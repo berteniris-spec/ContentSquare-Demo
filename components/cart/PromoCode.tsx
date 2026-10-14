@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { inputClasses } from "@/components/ui/Field";
-import { AlertCircleIcon, CheckIcon, PlusIcon } from "@/components/ui/icons";
+import { AlertCircleIcon, CheckIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
 import { useCart } from "@/lib/cart/CartProvider";
 import { isValidPromo } from "@/lib/pricing";
 
@@ -51,8 +51,9 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
     return (
       <div className={variant === "prominent" ? "rounded-lg bg-accent-soft p-5" : ""}>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-ink-2">
-            Code <span className="font-medium text-ink">{promoCode}</span> applied
+          <p className="flex items-center gap-1.5 text-sm text-success">
+            <CheckIcon size={16} className="shrink-0" />
+            <span>{promoCode} applied: 10% off your order</span>
           </p>
           <Button
             variant="ghost"
@@ -65,7 +66,9 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
             Remove code
           </Button>
         </div>
-        {messageEl}
+        <div aria-live="polite" data-testid="promo-code-message" className="sr-only">
+          {message?.text}
+        </div>
       </div>
     );
   }
@@ -75,7 +78,7 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
       <label htmlFor="promo-code" className="sr-only">
         Promo code
       </label>
-      <div className="flex flex-col gap-2 min-[360px]:flex-row">
+      <div className="flex flex-col gap-2 xs:flex-row">
         <input
           id="promo-code"
           data-testid="promo-code-input"
@@ -87,7 +90,7 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
           aria-describedby={message ? `${id}-msg` : undefined}
           className={`${inputClasses} flex-1`}
         />
-        <Button type="submit" variant="secondary" size="sm" data-testid="promo-code-apply" className="min-[360px]:h-12">
+        <Button type="submit" variant="secondary" size="sm" data-testid="promo-code-apply" className="xs:h-12">
           Apply
         </Button>
       </div>
@@ -118,7 +121,7 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
         onClick={() => setOpen((o) => !o)}
         className="-ml-2"
       >
-        <PlusIcon size={16} />
+        {inputVisible ? <MinusIcon size={16} /> : <PlusIcon size={16} />}
         Add a promo code
       </Button>
       <div id={`${id}-panel`} hidden={!inputVisible}>

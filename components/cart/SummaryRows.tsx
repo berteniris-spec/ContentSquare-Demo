@@ -51,8 +51,7 @@ export function SummaryRows({
           )}
         </dd>
       </div>
-      <div className="my-4 border-t border-line" />
-      <div className="flex justify-between text-xl font-semibold text-ink">
+      <div className="mt-4 flex justify-between border-t border-line pt-4 text-xl font-semibold text-ink">
         <dt>Total</dt>
         <dd>
           <Price amount={total} data-testid={`${testIdPrefix}-total`} />

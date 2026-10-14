@@ -2,6 +2,128 @@
 
 Owner: designer. Newest first. From now on, every change request in this file includes its exact fix spec, because the Builder works from this file.
 
+## 2026-10-14 - M3 re-review
+
+Method: read the Builder's changes for CR 1-7 in the working tree. Then I ran `npx next dev -p 3200` (stopped afterwards) and used Playwright at 1280x800 and 390x844. The run added the tee and jacket (size M), opened the promo disclosure, tried an invalid code then `demo10`, partially submitted the checkout, paid, and checked the processing state 500 ms after it appeared (well after the transition settles) and the confirmation. I also checked the newsletter at 340 and 390 px for the `xs` breakpoint. There were no console errors.
+
+| CR | Result |
+|---|---|
+| 1 Processing colour (must) | Fixed. Settled at +500 ms on both widths: background `accent`, white text, cursor `progress`, and `disabled` plus `aria-busy` still set. It shows a teal button with a white spinner and "Processing…", and white on accent passes AA. The Tab focus ring on Pay is unchanged. |
+| 2 Promo applied | Fixed. One line, "✓ DEMO10 applied: 10% off your order" in `text-success`, sits next to "Remove code". The live region is `sr-only` and keeps `promo-code-message`, and it announces the success. The invalid message is still visible with its icon and red border. |
+| 3 `<dl>` divider | Fixed. The `<dl>` contains only four `div > dt + dd` rows, and the Total row has the `border-t` with spacing that looks the same as before. |
+| 4 Focus order (must) | Fixed. With postcode and city both empty, submit sends focus to **Postcode**, at both widths. With only the postcode empty, focus also goes to Postcode. |
+| 5 Token classes | Fixed. `--breakpoint-xs: 22.5rem` is in `@theme`. The radio uses `accent-accent` (computed `rgb(31,92,87)`). PromoCode and NewsletterSignup use `xs:`, and no `[...]` arbitrary classes remain in the M3 files. The promo input and Apply are on one row at 1280 and 390, both 48 px tall. |
+| 6 Disclosure icon | Fixed. The icon changes to a minus when the field is open. |
+| 7 Stepper names | Fixed. The groups are named "Quantity, Merino base tee, Stone / M" and "Quantity, Storm shell jacket, Sea / M". The PDP still says "Quantity". |
+
+### New observations (nice-to-have, non-blocking; can land with M4)
+
+**CR 8 - nice-to-have - `components/home/NewsletterSignup.tsx` and `components/cart/PromoCode.tsx`: below 360 px the stacked input collapses to about 20 px tall.**
+In the `flex-col` stack, `flex-1` (flex-basis 0) overrides `h-12`. I saw it at 340 px on the newsletter, and the promo input uses the same pattern. This dates from before CR 5 (`min-[360px]` behaved the same) and does not affect the 390 px review width.
+Fix: on both inputs, replace `flex-1` with `xs:flex-1`. The input is already `w-full`, and `h-12` then applies when stacked.
+
+**CR 9 - nice-to-have - `components/cart/PromoCode.tsx`: at 390 px "Remove code" wraps onto two lines next to the success line.**
+Fix: add `className="shrink-0 whitespace-nowrap"` to the "Remove code" `Button`. The success text wraps instead, which is fine.
+
+M2 CR 5-6 (size-chip error border, sticky gallery) remain queued as nice-to-have for M4.
+
+VERDICT: APPROVED (CR 8-9 are nice-to-have)
+
+## 2026-10-14 - M3 Cart, checkout, confirmation
+
+Second M3 pass, after the Tester's PASS (239/0). It replaces the earlier M3 section below as the current verdict. Earlier CR 1-3 keep their numbers, and new items start at CR 4.
+
+Method: read every M3 file (`app/(shop)/cart|checkout|confirmation`, `components/cart/*`, `components/checkout/*`, `components/confirmation/*`, `lib/pricing.ts`, `lib/cart/*`, `lib/checkout/validation.ts`). Then I ran `npx next dev -p 3200` (stopped afterwards) and used Playwright at 1280x800 and 390x844 to cover:
+- empty cart, empty checkout and the no-order confirmation (fresh context);
+- the tee added from its PDP (size M), which is under €75 and shows the hint;
+- tee plus Storm shell jacket, with an invalid code, then `demo10`;
+- checkout initial state, empty submit, format errors, filled with Express, processing (captured mid-transition and settled at +500 ms), confirmation, and empty checkout after the order;
+- scripted Tab and arrow-key runs through the form, the computed outline on every stop, and a check of target sizes and `autocomplete` values.
+
+Friction flags are M4 and out of scope here.
+
+### Works well (no action)
+- **Labels and autocomplete:**
+  - Every field has a visible label above it. Contact, Shipping address, Shipping method and Payment are fieldsets with `text-xl` legends, and "All fields are required." appears once.
+  - Measured `autocomplete` values: `email`, `given-name`, `family-name`, `address-line1`, `postal-code`, `address-level2`, `country`.
+  - The card number, expiry and CVC fields are `off` with `inputmode="numeric"`, and email has `inputmode="email"`.
+- **Error messaging:**
+  - An empty submit shows 9 plain messages with an icon in `text-error` and a red border, with `aria-invalid` and `aria-describedby="error-<field>"`. Focus lands on email.
+  - Format errors are helpful: "Enter a postcode like 1234 AB", "Enter a card number of 13 to 19 digits", "This card has expired", "Enter the 3 or 4 digit security code".
+  - Errors appear on blur, not while typing, and clear once fixed.
+- **Banner:** the exact text in a calm sunken panel with an accent info icon, directly under the H1. At 1280 it is a single 46 px row (y=189). At 390 it fills two lines (y=166), and both lines are visible without scrolling. It never reads as an error.
+- **Summary hierarchy:**
+  - The rows read Subtotal, then "DEMO10 (-10%)" with −€29.40 in `text-success`, then Shipping (€6.95 or Free in `text-success`), then a divider and Total in `text-xl font-semibold`.
+  - The checkout summary adds 64x80 line thumbnails with variant and quantity.
+  - "Pay €264.60" puts the total in the CTA, and the summary updates live when Express is chosen (€277.55).
+  - The free-shipping hint and progress bar ("You’re €10.00 away") show only under the threshold.
+- **Trust cues:**
+  - The lock and "Secure checkout · 30-day returns" sit under both primary CTAs.
+  - The demo note appears on the confirmation, which shows "Order confirmed" with a check, the `TW-` number (tabular), the email, the shipping method and totals.
+  - Taken together, the store feels credible.
+- **Mobile checkout:**
+  - Single column, with 48 px inputs and the name and postcode/city pairs stacked.
+  - Radio cards are full width (about 76 px tall), and the summary, Pay and "Back to cart" come after Payment.
+  - No horizontal overflow.
+- **Keyboard and focus:**
+  - Tab order: email, first name, last name, street, postcode, city, country, shipping radio (one stop), card number, expiry, CVC, Pay, Back to cart, footer.
+  - ArrowDown switches to Express.
+  - Every stop shows the 2 px `focus` outline. Pay shows the ring at its 2 px offset, clearly outside the accent fill.
+  - The disclosure has `aria-expanded`, and the promo error is `aria-live="polite"`.
+- **Touch targets:** every control in the cart and checkout `main` is at least 44 px: the stepper is 44, Remove and "Remove code" are ghost h-11, Apply is h-12 from 360 px up, and inputs are h-12. The only smaller items are the cart line name links (18 px tall). They are accepted, because the 96x120 image tile beside each one is a large pointer target to the same PDP.
+- **Contrast:** only AA token pairs are used (`ink-2`/`muted` on surface/canvas/sunken, `error`, `success`, white on `accent`). The exception is the processing state; see CR 1.
+- **Tokens:** no hex, no default palette and no `font-bold` in M3 files. The two arbitrary values are covered in CR 5.
+- **States:**
+  - Empty cart and empty checkout: a calm surface panel with copy and a primary "Shop all products". Checkout keeps the banner above it.
+  - No order: an H1 "No recent order", copy and a primary CTA.
+  - The pre-hydration spacer avoids a false empty flash.
+  - No console errors in either run.
+
+### Status of earlier items
+- M3 CR 1-3 (processing colour, promo applied duplicate, `<dl>` divider): **not landed**. They are restated below.
+- M2 CR 5-6 (size-chip error border, sticky gallery): **not landed**. `SizeSelector.tsx` still uses `border-line-strong` in the error state, and the gallery column in `PurchasePanel.tsx` is not sticky. They stay nice-to-have and can land with M4.
+
+### Change requests (exact fixes)
+
+**CR 1 - must-fix (still open) - `components/ui/Button.tsx`: "Processing…" settles to grey.**
+I measured the settled state at +500 ms: `bg-sunken` with `text-muted` text. It reads as broken or unavailable at the payment moment, and the Tester flagged it too. (Screenshots taken within 150 ms catch the colour transition and look teal; that is misleading.)
+Fix: in `VARIANTS.primary` append `aria-busy:bg-accent! aria-busy:text-white! aria-busy:cursor-progress`. Keep `disabled` and `aria-busy` on the button. A "Sold out" button stays grey.
+
+**CR 2 - nice-to-have (still open) - `components/cart/PromoCode.tsx`: the applied state says the same thing twice.**
+Fix, in the `if (promoCode)` branch:
+- Replace the "Code … applied" `<p>` with `<p className="flex items-center gap-1.5 text-sm text-success"><CheckIcon size={16} className="shrink-0" /><span>{promoCode} applied: 10% off your order</span></p>`.
+- Replace `{messageEl}` with `<div aria-live="polite" data-testid="promo-code-message" className="sr-only">{message?.text}</div>`.
+
+**CR 3 - nice-to-have (still open) - `components/cart/SummaryRows.tsx`: the divider is a `<div>` inside the `<dl>` with no dt/dd.**
+Fix: delete `<div className="my-4 border-t border-line" />` and give the Total row `className="mt-4 flex justify-between border-t border-line pt-4 text-xl font-semibold text-ink"`.
+
+**CR 4 - must-fix - `lib/checkout/validation.ts`: focus goes to the wrong field when the postcode and city are both empty.**
+`FIELD_ORDER` lists `city` before `postcode`, but the form shows (and tabs through) Postcode first, then Town or city. When I filled email, names and street and submitted, focus landed on "Town or city" (the second field in the row), skipping the first error. PLAN section 9 says "focus first invalid field".
+Fix: change the order to `"email", "firstName", "lastName", "address", "postcode", "city", "country", "cardNumber", "cardExpiry", "cardCvc"`. No UI change.
+
+**CR 5 - nice-to-have - `components/checkout/ShippingMethod.tsx` and `components/cart/PromoCode.tsx`: two arbitrary-value classes.**
+They are `accent-[var(--color-accent)]` and `min-[360px]:`. Both were tolerated in DESIGN_TOKENS, but the convention is token-only classes.
+Fix:
+- In ShippingMethod, change `accent-[var(--color-accent)]` to `accent-accent`.
+- In `app/globals.css` `@theme`, add `--breakpoint-xs: 22.5rem;`.
+- In PromoCode, replace `min-[360px]:flex-row` with `xs:flex-row` and `min-[360px]:h-12` with `xs:h-12`.
+- Apply the same change in `NewsletterSignup.tsx` if it uses `min-[360px]`.
+
+DESIGN_TOKENS sections 3, 6 and 7 are updated to match.
+
+**CR 6 - nice-to-have - `components/cart/PromoCode.tsx`: the disclosure icon does not change when it opens.**
+"+ Add a promo code" keeps the plus sign while the input is open.
+Fix: render `{inputVisible ? <MinusIcon size={16} /> : <PlusIcon size={16} />}` (import `MinusIcon` from `@/components/ui/icons`). Leave the label text as it is.
+
+**CR 7 - nice-to-have - `components/product/QuantityStepper.tsx` and `components/cart/CartLineItem.tsx`: steppers in a cart with several lines are indistinguishable to screen readers.**
+Each line announces the same "Quantity" group with "Decrease quantity" and "Increase quantity". Remove already names its item.
+Fix:
+- Add an optional prop `label?: string` to QuantityStepper and use `aria-label={label ?? "Quantity"}` on the group.
+- In CartLineItem, pass ``label={`Quantity, ${item.name}, ${variant}`}``.
+- The PDP is unchanged.
+
+VERDICT: CHANGES REQUESTED (2 must-fix: CR 1, CR 4)
+
 ## 2026-10-14 - M3 Cart, checkout, confirmation
 
 Method: read every M3 component. Then, on `npm run dev -- -p 3200` (stopped afterwards), Playwright at 1280x800 and 390x844 covered:

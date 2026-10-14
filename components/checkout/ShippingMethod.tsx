@@ -38,7 +38,7 @@ export function ShippingMethod({
                 checked={checked}
                 onChange={() => onChange(o.id)}
                 data-testid={`shipping-${o.id}`}
-                className="mt-0.5 size-5 accent-[var(--color-accent)]"
+                className="mt-0.5 size-5 accent-accent"
               />
               <span className="flex-1">
                 <span className="flex justify-between gap-3">

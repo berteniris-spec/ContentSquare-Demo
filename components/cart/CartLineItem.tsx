@@ -42,7 +42,13 @@ export function CartLineItem({
           <Price amount={lineTotal(item)} data-testid="cart-line-total" className="font-medium text-ink" />
         </div>
         <div className="mt-auto flex flex-wrap items-center gap-3 pt-3">
-          <QuantityStepper value={item.quantity} onChange={onQuantity} testIdPrefix="cart-qty" size="sm" />
+          <QuantityStepper
+            value={item.quantity}
+            onChange={onQuantity}
+            testIdPrefix="cart-qty"
+            size="sm"
+            label={`Quantity, ${item.name}, ${variant}`}
+          />
           <Button variant="ghost" data-testid="cart-remove" onClick={onRemove} aria-label={`Remove ${item.name}, ${variant}`}>
             Remove
           </Button>

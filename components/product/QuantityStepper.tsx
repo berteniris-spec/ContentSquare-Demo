@@ -10,6 +10,7 @@ export function QuantityStepper({
   max = MAX_QTY,
   testIdPrefix = "pdp-qty",
   size = "md",
+  label,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -17,13 +18,14 @@ export function QuantityStepper({
   max?: number;
   testIdPrefix?: string;
   size?: "md" | "sm";
+  label?: string;
 }) {
   const btn =
     "grid size-11 place-items-center text-ink hover:bg-sunken disabled:text-line-strong disabled:hover:bg-transparent disabled:cursor-not-allowed";
   return (
     <div
       role="group"
-      aria-label="Quantity"
+      aria-label={label ?? "Quantity"}
       className={`inline-flex items-center rounded-md border border-line-strong bg-surface ${size === "md" ? "h-12" : "h-11"}`}
     >
       <button

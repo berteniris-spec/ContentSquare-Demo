@@ -44,7 +44,7 @@ export function NewsletterSignup() {
               <label htmlFor={inputId} className={labelClasses}>
                 Email address
               </label>
-              <div className="mt-1.5 flex flex-col gap-2 min-[360px]:flex-row">
+              <div className="mt-1.5 flex flex-col gap-2 xs:flex-row">
                 <input
                   id={inputId}
                   type="email"

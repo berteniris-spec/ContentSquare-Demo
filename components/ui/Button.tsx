@@ -14,7 +14,7 @@ const SIZES: Record<ButtonSize, string> = {
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-white hover:bg-accent-hover active:bg-accent-hover disabled:bg-sunken disabled:text-muted",
+    "bg-accent text-white hover:bg-accent-hover active:bg-accent-hover disabled:bg-sunken disabled:text-muted aria-busy:bg-accent! aria-busy:text-white! aria-busy:cursor-progress",
   secondary:
     "border border-line-strong bg-surface text-ink hover:border-ink hover:bg-sunken disabled:text-muted disabled:border-line",
   ghost:

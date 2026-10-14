@@ -1,6 +1,6 @@
 # Features
 
-Status: reflects the code after M2. Each section is filled in when its milestone ships. Spec: `docs/PLAN.md` sections 5 and 9. All behaviour below is the clean (no-friction) behaviour; friction comes in M4.
+Status: reflects the code after M3. Each section is filled in when its milestone ships. Spec: `docs/PLAN.md` sections 5 and 9. All behaviour below is the clean (no-friction) behaviour; friction comes in M4.
 
 ## Shell (M1)
 
@@ -51,7 +51,7 @@ Page: `app/(shop)/product/[slug]/page.tsx` (static, unknown slug -> 404). Main c
 Code: `lib/cart/store.ts`, `lib/cart/CartProvider.tsx`. Details in `ARCHITECTURE.md` (State).
 
 - Line key `<productId>:<colour>:<size or ->` (e.g. `p02:sand:-`). Adding the same variant merges quantities; a different colour or size is a new line. Quantity is clamped to 1..10 (`MAX_QTY`), also on merge.
-- Actions: `addItem`, `setQuantity`, `removeItem`, `applyPromo`, `removePromo`, `clear` (the last four are used from M3).
+- Actions: `addItem`, `setQuantity`, `removeItem`, `applyPromo`, `removePromo`, `clear` (cart page, promo and checkout use them from M3).
 - Persisted in localStorage `tw-cart-v1` (items + `promoCode`). Survives reload, navigation and other tabs (`storage` event). Corrupt or invalid storage falls back to an empty cart without errors.
 
 ## Mini-cart drawer (M2)
@@ -64,19 +64,77 @@ Code: `components/layout/MiniCartDrawer.tsx`, mounted once in `app/(shop)/layout
 
 ## Pricing rules (M2, used from M3)
 
-Pure functions in `lib/pricing.ts`, constants in `lib/config.ts`. Amounts in EUR, rounded to cents (`roundCents`).
+Pure functions in `lib/pricing.ts`, constants in `lib/config.ts`. Amounts in EUR, rounded to cents (`roundCents`). Components never compute money themselves.
 
 - `lineTotal`, `subtotal`.
 - `isValidPromo(code)`: `DEMO10`, trimmed, case-insensitive. `discount(sub, code)`: 10% of the subtotal.
 - `shipping(discountedSubtotal, method)`: standard is free when subtotal - discount >= €75, else €6.95; express is always €12.95.
 - `awayFromFreeShipping(discountedSubtotal)`: amount still needed for free standard shipping.
 - `totals(lines, promo, method)`: `{ subtotal, discount, shipping, total }`; shipping is 0 for an empty cart.
-- In M2 only the subtotal is shown (drawer). The cart page and checkout that use the rest are M3.
+- The threshold uses the discounted subtotal, so a promo can push an order back under €75 (e.g. €79 + DEMO10 = €71.10 -> €6.95 shipping).
+
+## Cart page `/cart` (M3)
+
+Page: `app/(shop)/cart/page.tsx` (H1 "Cart") renders `components/cart/CartView.tsx` (client).
+
+- Until the cart has hydrated it renders an `aria-hidden` spacer, so there is no false "empty" flash.
+- **Lines** (`CartLineItem.tsx`, `cart-line-<key>`): image tile and name both link to the PDP; variant "Colour / Size"; unit price; line total `cart-line-total`. Quantity stepper (`cart-qty-*`, 1..10, minus disabled at 1, group named "Quantity, <name>, <variant>"); Remove (`cart-remove`, named "Remove <name>, <variant>"). Changes update the summary and header count at once.
+- **Summary** (`OrderSummary.tsx`, sticky from `lg`): rows from `SummaryRows.tsx` (`cart-subtotal`, `cart-discount`, `cart-shipping`, `cart-total`). Subtotal; "DEMO10 (-10%)" with the discount in `text-success`; Shipping (amount, or "Free"); Total. Cart totals always use standard shipping.
+- **Free-shipping hint** (`FreeShippingHint.tsx`, `cart-free-shipping-hint`): "You're €X away from free shipping" plus a progress bar, shown only under the threshold.
+- `proceed-to-checkout` -> `/checkout`, then the trust line "Secure checkout · 30-day returns".
+- **Empty state** (`EmptyCart.tsx`, `cart-empty`): message plus "Shop all products" -> `/category/all`; no checkout button.
+- Two-column layout from `lg` (lines 7/12, summary 5/12), single column on mobile.
+
+## Promo code (M3)
+
+Code: `components/cart/PromoCode.tsx`, rules in `lib/pricing.ts`, state in the cart store (`promoCode`).
+
+- Clean state: a quiet "+ Add a promo code" disclosure (`promo-code-toggle`, `aria-expanded`, icon switches to minus when open) below the summary. Opens a labelled input (`promo-code-input`, `autocomplete="off"`) and `promo-code-apply`. Input and button sit in a row from the `xs` breakpoint (360 px), stacked below it.
+- `DEMO10` in any case and with surrounding spaces applies: the summary shows the discount row and the panel shows one line "✓ DEMO10 applied: 10% off your order" next to "Remove code" (`promo-code-remove`). A `sr-only` live region (`promo-code-message`) announces it.
+- Anything else (e.g. `DEMO11`, `DEMO 10`, empty) shows "This code isn't valid" in `promo-code-message` (`aria-live="polite"`, icon, `aria-invalid` on the input); no discount.
+- The code is stored with the cart (localStorage `tw-cart-v1`), survives reload and carries into checkout. It is cleared with the cart after an order.
+- The `prominent` variant (always-open accent block above the rows) is the M4 `promoField` hook; not used yet.
+
+## Shipping rules (M3)
+
+- Standard: free when subtotal - discount >= €75, else €6.95. Express: always €12.95. Shown on the cart (standard only), on the checkout radio cards and in every summary.
+- Checkout summary and "Pay €X" update live when the method changes. The confirmation shows the method used.
+- `SummaryRows` `shippingDisplay="deferred"` ("Calculated at checkout") is the M4 `shippingSurprise` hook; not used yet.
+
+## Checkout `/checkout` (M3)
+
+Page: `app/(shop)/checkout/page.tsx` (H1, `DemoBanner`, `CheckoutForm`). Main component `components/checkout/CheckoutForm.tsx` (client).
+
+- **Demo banner** (`DemoBanner.tsx`, `checkout-demo-banner`): "Demo store: no real payment is taken. Use any test details, e.g. 4242 4242 4242 4242." Calm sunken panel with an info icon, also shown above the empty state.
+- **Empty cart**: `checkout-empty` (reuses `EmptyCart`), no form or Pay button.
+- **Form** (`checkout-form`, `noValidate`), "All fields are required.", fieldsets in this order:
+  - Contact: email (`autocomplete="email"`, `inputmode="email"`).
+  - Shipping address: first name, last name, street and house number, postcode, town or city, country select (Netherlands default, Belgium, Germany, France). Standard autocomplete values (`given-name`, `family-name`, `address-line1`, `postal-code`, `address-level2`, `country`).
+  - Shipping method (`ShippingMethod.tsx`): radio cards `shipping-standard` ("2-4 working days", Free or €6.95) and `shipping-express` ("Next working day", €12.95).
+  - Payment: card number, expiry (MM/YY), CVC; all `autocomplete="off"`, `inputmode="numeric"`.
+- Inputs use `TextField.tsx`: id and test id `checkout-<field>`, visible label, inline error `error-<field>` with `aria-invalid` and `aria-describedby`.
+- **Validation** (`lib/checkout/validation.ts`, pure; clean mode):
+  - Errors show on blur and on submit, not while typing; a fixed field clears its error as you type. Changing the country re-validates the postcode.
+  - Email format; every field required (plain messages like "Enter your first name").
+  - Postcode per country, trimmed and upper-cased: NL `1234 AB` (space optional, any case), BE exactly 4 digits, DE and FR exactly 5. Message names an example: "Enter a postcode like 1234 AB" (or 1000 / 10115 / 75001).
+  - Card number: spaces stripped, 13-19 digits, no Luhn. Expiry: MM/YY, month 01-12, not before the current month ("This card has expired"). CVC: 3-4 digits.
+  - On submit, focus moves to the first invalid field in visual order (`FIELD_ORDER`: email, first name, last name, street, postcode, city, country, card number, expiry, CVC).
+- **Summary** (`CheckoutSummary.tsx`, sticky from `lg`): line thumbnails with variant and quantity, rows `checkout-summary-*`, submit `checkout-submit` "Pay €X" (outside the form, linked with `form=`), trust line, then "Back to cart".
+- **Processing**: on a valid submit the button shows a spinner and "Processing…" (`checkout-processing`), is `disabled` and `aria-busy`, stays accent-coloured; inputs are disabled. After 1.5 s it saves the order to sessionStorage `tw-last-order`, navigates to `/confirmation` and clears the cart (including the promo).
+- **Card privacy**: card values live only in component state; they are never persisted, logged, tracked or saved in the order.
+- Two-column layout from `lg` (form 7/12, summary 5/12); single column on mobile with the summary after Payment.
+
+## Confirmation `/confirmation` (M3)
+
+Page: `app/(shop)/confirmation/page.tsx` renders `components/confirmation/ConfirmationView.tsx` (client). Order data: `lib/order.ts`.
+
+- Reads the last order from sessionStorage `tw-last-order` via `useSyncExternalStore` (spacer until hydrated).
+- With an order: "Order confirmed", H1 "Thank you for your order", order number `confirmation-order-number` (`TW-` + 6 random digits), the email, a demo note, `continue-shopping` -> `/`. Summary `confirmation-summary`: lines, shipping method ("Express (next working day)" / "Standard (2-4 working days)"), rows `confirmation-*`.
+- Reload shows the same order (sessionStorage, per tab session). The order carries `purchaseTracked: false`, ready for the M5 fire-once `purchase` event (`markPurchaseTracked`).
+- No order (fresh session): `confirmation-no-order` with H1 "No recent order" and "Shop all products" -> `/category/all`.
 
 ## Planned
 
-- Cart page, promo `DEMO10` UI, shipping rule display: planned (milestone 3)
-- Checkout (single page, validation, processing state) and confirmation: planned (milestone 3)
-- Friction behaviours: planned (milestone 4), see `FRICTION_FLAGS.md`
-- Tracking events (incl. `add_to_cart`): planned (milestone 5), see `TRACKING.md`
+- Friction behaviours: planned (milestone 4), see `FRICTION_FLAGS.md`. Hooks already in place: `promoVariant` / `shippingDisplay` props on `OrderSummary`, `strictPostcode` in `validatePostcode`, `onShippingChange` in `CheckoutForm`.
+- Tracking events (incl. `add_to_cart`, `purchase` fired once per order): planned (milestone 5), see `TRACKING.md`
 - Control panel `/demo-controls`: planned (milestone 6)

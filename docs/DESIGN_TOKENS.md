@@ -103,7 +103,7 @@ Weights: only 400, 500 (`font-medium`), 600 (`font-semibold`). No bold (700) and
 - Product grid: `grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-3 lg:grid-cols-4 md:gap-x-6 md:gap-y-12`. Featured/related rows use the same grid with 4 items (2x2 on mobile).
 - PDP: `lg:grid lg:grid-cols-12 lg:gap-12`, gallery `lg:col-span-7`, info `lg:col-span-5`. Below `lg` it is a single column.
 - Cart and checkout: `lg:grid lg:grid-cols-12 lg:gap-12`, content `lg:col-span-7`, summary `lg:col-span-5`. The summary is `lg:sticky lg:top-24`. On mobile the summary comes after the lines (cart) or after the form, above the Pay button (checkout).
-- Breakpoints: **Tailwind v4 defaults, unchanged**: `sm` 40rem (640), `md` 48rem (768), `lg` 64rem (1024), `xl` 80rem (1280). Review widths: 390 and 1280.
+- Breakpoints: **Tailwind v4 defaults**: `sm` 40rem (640), `md` 48rem (768), `lg` 64rem (1024), `xl` 80rem (1280), plus one token `xs` 22.5rem (360), defined as `--breakpoint-xs: 22.5rem;` in `@theme` (M3 review, CR 5), used only to put inline input + button pairs side by side. Never write `min-[360px]:`. Review widths: 390 and 1280.
 - Z-index: header `z-30`, drawer overlay `z-40`, drawer `z-50`, skip link `z-[60]`.
 - Touch targets: every interactive element is at least 44x44px (`min-h-11 min-w-11`). For a smaller visual (swatch, icon), pad the hit area.
 
@@ -198,6 +198,8 @@ Global, in `globals.css` (base layer), so no component can forget it:
   --text-display: clamp(2.5rem, 1.6rem + 3.2vw, 4rem);
   --text-display--line-height: 1.05;
 
+  --breakpoint-xs: 22.5rem;
+
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
@@ -248,11 +250,11 @@ Write the class strings once in `components/ui/*` and reuse them. Don't scatter 
 - Hint: `text-sm text-muted`, linked with `aria-describedby`.
 - Error state: `border-error` + `aria-invalid="true"`; message below: `flex gap-1.5 text-sm text-error` with a 16px error icon (circle-with-exclamation, `aria-hidden`), `id="error-<field>"`, referenced in `aria-describedby`. The message appears on blur/submit, not while the user is typing.
 - Select: same as the control plus `appearance-none pr-10` and a 16px chevron icon placed absolutely at `right-3` (`text-muted`, `pointer-events-none`).
-- Inline input + button: `flex gap-2`, input `flex-1`. Promo: `sm` secondary button. Newsletter: `md` primary button (matches the h-12 input). Below 360px they stack.
-- Checkbox/radio native visuals: `accent-[var(--color-accent)] size-5` is acceptable for the checkbox. Radio cards are below.
+- Inline input + button: `flex gap-2`, input `flex-1`. Promo: `sm` secondary button. Newsletter: `md` primary button (matches the h-12 input). They stack below `xs` (360px): `flex flex-col gap-2 xs:flex-row`, and the promo Apply button gets `xs:h-12`.
+- Checkbox/radio native visuals: `accent-accent size-5` (token class, no arbitrary value). Radio cards are below.
 
 ### Radio cards (shipping method)
-- `flex items-start gap-3 rounded-md border border-line-strong bg-surface p-4 cursor-pointer`. Checked: `border-accent bg-accent-soft` with a visible native radio (`accent-[var(--color-accent)] size-5`). Label row: method name `font-medium text-ink`, price aligned right `tabular-nums text-ink`. Second line: "2-4 working days" / "Next working day" in `text-sm text-muted`.
+- `flex items-start gap-3 rounded-md border border-line-strong bg-surface p-4 cursor-pointer`. Checked: `border-accent bg-accent-soft` with a visible native radio (`accent-accent size-5`). Label row: method name `font-medium text-ink`, price aligned right `tabular-nums text-ink`. Second line: "2-4 working days" / "Next working day" in `text-sm text-muted`.
 
 ### Swatches (colour radio group)
 - A 44px button-sized hit area containing a 32px circle: `relative grid size-11 place-items-center rounded-full`; inner `size-8 rounded-full ring-1 ring-inset ring-ink/15` filled with the colour hex (inline `style`). The inset ring keeps light colours visible.

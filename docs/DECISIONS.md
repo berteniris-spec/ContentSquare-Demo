@@ -2,6 +2,19 @@
 
 Newest first. Each entry: decision, why, date.
 
+## 2026-10-14 - M3 Cart, checkout, confirmation
+
+1. **New theme breakpoint `xs` (`--breakpoint-xs: 22.5rem`, 360 px) in `app/globals.css` `@theme`, used instead of arbitrary `min-[360px]:` variants.**
+   Why: the convention is token-only classes (no arbitrary values). Inline input + button pairs (promo code, newsletter) stack below 360 px and sit in a row from `xs`. Designer CR 5; DESIGN_TOKENS sections 3, 6 and 7 updated. The shipping radio likewise uses `accent-accent` instead of `accent-[var(--color-accent)]`.
+2. **Postcode rules per country in clean mode: NL `1234 AB` (space optional, any case), BE exactly 4 digits, DE and FR exactly 5.**
+   Why: more realistic than the PLAN wording "BE/DE/FR 4-5 digits", and the error message names a matching example. Tester accepted it as not a failure. Code: `lib/checkout/validation.ts`.
+3. **`FIELD_ORDER` follows the visual order (postcode before city).**
+   Why: submit focuses the first invalid field; with city first, focus skipped the postcode error (Designer CR 4, must-fix).
+4. **The "Processing…" button stays accent-coloured with white text while `disabled` + `aria-busy`** (`aria-busy:bg-accent! aria-busy:text-white! aria-busy:cursor-progress` in the primary variant). Other disabled buttons (e.g. "Sold out") stay grey.
+   Why: a grey button at the payment moment reads as broken (Designer CR 1, must-fix). Code: `components/ui/Button.tsx`.
+5. **The cart page always prices standard shipping; the shipping method is chosen only at checkout.** Card values live only in `CheckoutForm` state and are never stored in the order, storage, logs or tracking.
+   Why: PLAN section 9; keeps the demo free of anything that looks like real payment data.
+
 ## 2026-10-14 - M2 Catalogue and cart store
 
 1. **PDP thumbnails are 80x100 px (`h-25 w-20`), not square `size-20`.**
