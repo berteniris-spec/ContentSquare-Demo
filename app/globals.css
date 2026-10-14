@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  /* Reset Tailwind's default palette so only brand tokens exist */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-canvas: #faf8f5;
+  --color-surface: #ffffff;
+  --color-sunken: #f2eee8;
+  --color-image: #ece7df;
+  --color-line: #e4dfd7;
+  --color-line-strong: #8c857a;
+  --color-ink: #1d1b18;
+  --color-ink-2: #4a453e;
+  --color-muted: #6a645b;
+  --color-accent: #1f5c57;
+  --color-accent-hover: #164642;
+  --color-accent-soft: #e2eeec;
+  --color-accent-ink: #174a46;
+  --color-error: #b42318;
+  --color-error-soft: #fdecea;
+  --color-success: #2f6b3b;
+  --color-success-soft: #e7f2e8;
+  --color-warning: #8a5300;
+  --color-warning-soft: #fbf0dc;
+  --color-focus: #1f5c57;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+  --text-xs: 0.75rem;     --text-xs--line-height: 1.4;
+  --text-sm: 0.875rem;    --text-sm--line-height: 1.45;
+  --text-base: 1rem;      --text-base--line-height: 1.6;
+  --text-lg: 1.125rem;    --text-lg--line-height: 1.6;
+  --text-xl: 1.25rem;     --text-xl--line-height: 1.4;
+  --text-2xl: 1.5rem;     --text-2xl--line-height: 1.25;
+  --text-3xl: 2rem;       --text-3xl--line-height: 1.15;
+  --text-4xl: 2.5rem;     --text-4xl--line-height: 1.1;
+  --text-display: clamp(2.5rem, 1.6rem + 3.2vw, 4rem);
+  --text-display--line-height: 1.05;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.25rem;
+
+  --shadow-sm: 0 1px 2px rgb(29 27 24 / 0.06);
+  --shadow-md: 0 4px 16px -4px rgb(29 27 24 / 0.10);
+  --shadow-drawer: -12px 0 40px -12px rgb(29 27 24 / 0.22);
+}
+
+@layer base {
+  html { color-scheme: light; -webkit-text-size-adjust: 100%; }
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink-2);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { color: var(--color-ink); text-wrap: balance; }
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  :focus:not(:focus-visible) { outline: none; }
+  ::selection { background: var(--color-accent-soft); color: var(--color-ink); }
+}
+
+/* Mini-cart drawer slide-in (wrapped in motion-safe: at the call site). */
+@theme {
+  --animate-drawer-in: drawer-in 200ms ease-out;
+  @keyframes drawer-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+}
