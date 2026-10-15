@@ -16,8 +16,11 @@ import {
   type ValidateOptions,
 } from "@/lib/checkout/validation";
 import { COUNTRIES, DEFAULT_COUNTRY, EXPRESS_SHIPPING } from "@/lib/config";
+import { expressRateFor } from "@/lib/checkout/expressRate";
+import { useFlag } from "@/lib/flags/FlagsProvider";
 import { generateOrderNumber, saveLastOrder, type Order } from "@/lib/order";
 import { shipping as shippingFor, totals as computeTotals, type ShippingMethod as Method } from "@/lib/pricing";
+import { trackBeginCheckout } from "@/lib/tracking/track";
 import { CheckoutSummary } from "./CheckoutSummary";
 import { ShippingMethod } from "./ShippingMethod";
 import { TextField } from "./TextField";
@@ -46,7 +49,12 @@ export function CheckoutForm() {
   // Card values live only in this component state: never persisted, logged or tracked.
   const [values, setValues] = useState<CheckoutValues>(EMPTY);
   const [errors, setErrors] = useState<Errors>({});
+  // `method` is what the radio shows; `priced` is what the summary and order use.
+  // They only differ while the expressShippingError friction is breaking the handler.
   const [method, setMethod] = useState<Method>("standard");
+  const [priced, setPriced] = useState<Method>("standard");
+  const postcodeFlag = useFlag("postcodeValidation");
+  const expressErrorFlag = useFlag("expressShippingError");
   const [processing, setProcessing] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,16 +62,30 @@ export function CheckoutForm() {
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
-  // M4 hook: postcodeValidation sets strictPostcode.
-  const validateOpts: ValidateOptions = { strictPostcode: false };
+  // begin_checkout once per visit, when the checkout opens with a non-empty cart.
+  const beginTracked = useRef(false);
+  useEffect(() => {
+    if (beginTracked.current || !cart.hydrated || cart.items.length === 0) return;
+    beginTracked.current = true;
+    const t = computeTotals(cart.items, cart.promoCode, "standard");
+    trackBeginCheckout(cart.items, t.subtotal - t.discount, cart.promoCode);
+  }, [cart.hydrated, cart.items, cart.promoCode]);
+
+  const validateOpts: ValidateOptions = { strictPostcode: postcodeFlag };
 
   if (!cart.hydrated) return <div className="min-h-64" aria-hidden="true" />;
   if (cart.items.length === 0 && !processing) {
     return <EmptyCart testId="checkout-empty" message="Your cart is empty, so there is nothing to check out yet." />;
   }
 
-  const totals = computeTotals(cart.items, cart.promoCode, method);
+  const totals = computeTotals(cart.items, cart.promoCode, priced);
   const standardPrice = shippingFor(totals.subtotal - totals.discount, "standard");
+
+  // expressShippingError (friction): looks up the express zone for the postcode; this throws a TypeError
+  // for postcodes matching EXPRESS_ERROR_POSTCODE. Never called when the flag is OFF.
+  function checkExpressZone(selected: Method, postcode: string) {
+    if (expressErrorFlag && selected === "express") expressRateFor(postcode);
+  }
 
   function setValue(field: CheckoutField, value: string) {
     const next = { ...values, [field]: value };
@@ -79,6 +101,10 @@ export function CheckoutForm() {
       }
       return updated;
     });
+    if (field === "postcode") {
+      checkExpressZone(method, value);
+      setPriced(method);
+    }
   }
 
   function onBlur(field: CheckoutField) {
@@ -91,14 +117,16 @@ export function CheckoutForm() {
     });
   }
 
-  // M4 hook: expressShippingError wraps this handler.
   function onShippingChange(next: Method) {
     setMethod(next);
+    checkExpressZone(next, values.postcode);
+    setPriced(next);
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (processing) return;
+    checkExpressZone(method, values.postcode);
     const all = validateAll(values, validateOpts);
     setErrors(all);
     const first = FIELD_ORDER.find((f) => all[f]);
@@ -117,7 +145,7 @@ export function CheckoutForm() {
         discount: totals.discount,
         shipping: totals.shipping,
         total: totals.total,
-        shippingMethod: method,
+        shippingMethod: priced,
         promoCode: cart.promoCode,
         currency: "EUR",
         purchaseTracked: false,

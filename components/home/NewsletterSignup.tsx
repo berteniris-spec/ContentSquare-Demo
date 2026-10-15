@@ -55,7 +55,7 @@ export function NewsletterSignup() {
                   onChange={(e) => setEmail(e.target.value)}
                   aria-invalid={error ? true : undefined}
                   aria-describedby={error ? errorId : undefined}
-                  className={`${inputClasses} flex-1`}
+                  className={`${inputClasses} xs:flex-1`}
                 />
                 <Button type="submit" data-testid="newsletter-submit">
                   Sign up

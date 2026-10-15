@@ -340,3 +340,96 @@ Scope: PLAN section 9 "Global / shell", DESIGN_TOKENS.md, and the SVG product im
 
 ### Verdict
 CHANGES REQUESTED. Four must-fix items (CR 1-4), all small; see the change requests in the designer's message.
+
+## 2026-10-14 - M4 Friction flags (local)
+
+Method: production build, `next start` on port 3000 (stopped afterwards), Playwright screenshots at 1280, 390 and 360 px with `?friction=all:on` and `all:off`, plus per-flag overrides. Pages: PLP, Trailhead 28 PDP, Storm shell jacket PDP, cart (tote, promo expanded and applied), checkout with Express and postcode `1011 AB`. The only console error was the expected express TypeError (`reading 'rate'`).
+
+### Builder questions
+1. Decoy banner spacing `mb-4 md:mb-6`: good. 16 px (mobile) and 24 px (desktop) between the strip and the sort row reads as a deliberate promo strip above the toolbar. The strip is a calm full-width solid accent bar with an arrow and white 14 px text (contrast about 7:1), so it looks like a real seasonal promo and is not garish. Realistic and subtle enough.
+2. Buried-CTA copy on Trailhead 28: good. Specs table (8 rows, consistent with the description: 28 L, recycled 420D, PFC-free DWR) and a 5-item care list read like real product copy, are not padded, and stay on-brand. At 390 px, Add to cart sits about 1,150 px below the title (roughly 2 to 3 screens), as the plan wants. Heading hierarchy is sound (h1, then h2s). OFF layout is the standard PDP with the short story below the CTA.
+3. OFF-state a11y: no regressions seen. With `all:off` the decoy strip and the long story are not rendered (no leftover markup), the swatch and size behaviour are normal, the clean size error shows (icon, red text, focus moved to the first chip) on the jacket, and the cart shows the real shipping line, free-shipping hint and a collapsed promo disclosure. The decoy strip is correctly non-focusable and has no role (no false "link" for assistive tech).
+4. Deferred nice-to-haves, all landed: size-chip error border (`border-error` on unselected chips, visible at 360 px); sticky gallery column (`lg:sticky lg:top-20 lg:self-start`, no overlap with the header); 360 px inputs (`xs:flex-1`, promo input is full size and Apply sits beside it); "Remove code" no longer wraps at 390 px (the applied message wraps instead, which is fine).
+
+### Friction realism (ON)
+- promoField: large mint block with "Have a promo code?" above the totals. Looks like a real upsell, inviting a detour. Good.
+- shippingSurprise, silentSize, deadSwatch, slowHero, expressShippingError, postcodeValidation: visually identical to the clean UI except for the intended behaviour. The "Invalid input." error uses the standard error style, so it looks like a plain, unhelpful validator. Good. Express keeps the previous total while the radio shows Express, which is a believable bug.
+- decoyBanner: see above.
+
+### Change requests
+1. **Nice-to-have.** `components/home/HeroImage.tsx`: the hero renders `null` until flags are `ready`, and the `priority` hint was dropped, so on every load (including the clean OFF state) the framed hero box is briefly empty and then pops in. The frame is reserved, so there is no layout shift, but the clean state looks slightly slower than before. Fix: when `!ready`, either render the static `/images/hero.svg` with `priority` and swap to `/api/hero-image` only if the flag resolves ON (note this requests the static file for slowHero ON visitors, which is harmless), or show the `bg-image` frame with a subtle fade-in (`transition-opacity duration-300`) on the image. Do not request `/api/hero-image` when OFF.
+2. **Nice-to-have.** `components/product/DecoyBanner.tsx`: the strip has `cursor-pointer` and a hover colour (intentional). Optionally add `select-none` so a double-click does not highlight the text, which makes the dead zone feel more realistic in a replay. No change needed for approval.
+
+No must-fix items.
+
+VERDICT: APPROVED
+
+## 2026-10-14 - M5 Tracking (light review)
+
+Method: production build, `next start` on port 3000 (stopped afterwards), Playwright at 1280 and 390 px, `?friction=all:off` and default. Pages: home, PLP, PDP, cart (with item), checkout (with item), confirmation, /demo-controls, plus the mini-cart drawer. Layout shift measured with a PerformanceObserver.
+
+Findings:
+- No visual change against the M4 state: header, PDP (clean state), cart and checkout render as before. M5 added no UI, as intended.
+- No console or page errors on any route at either width. The only error seen was a 404 from my own wrong product slug guess, not an app issue.
+- Layout shift: 0.000 on home, PLP, PDP and demo-controls. Cart 0.007 (1280) and 0.013 (390), checkout 0.005 and 0.000, confirmation 0.004 (1280) and 0.042 (390, empty-state path in my test, below the 0.1 "good" threshold). These come from client-hydrated cart and order content, not tracking scripts (tags render `null` or afterInteractive scripts with no DOM). No action needed.
+- `body[data-page-type]` is correct per route (home, plp, cart, checkout, confirmation, demo-controls). The tags do not render on /demo-controls.
+- Keyboard and focus: Add to cart via Enter opens the drawer with focus on "Close cart"; the first Tab on checkout lands on a visible 2px solid focus outline. Unchanged from M2 to M4.
+- Landmarks, labels and touch targets: unchanged.
+
+### Change requests
+None.
+
+VERDICT: APPROVED
+
+## 2026-10-14 - M6 Control panel
+
+Method: production build, `FLAG_STORE=memory` with the test PIN on port 3000, and `FLAG_STORE=none` with no PIN on port 3001 (both stopped afterwards). Playwright at 1280, 390 and 360 px: locked, wrong PIN, unlocked, after toggle and after "Only fix errors", PIN-disabled state. Memory store only.
+
+Findings:
+- Readability: H1 40px, flag names 16px semibold, large 80x44 switches with a clear ON (accent) / OFF (grey) contrast and a white thumb. State is also written as text (ON/OFF), so it is not colour only. Legible when screen-sharing.
+- Switch: exactly 80x44 (meets touch target). `role="switch"`, `aria-checked`, `aria-labelledby` (flag name), `aria-describedby` (description). Disabled uses 60% opacity plus `not-allowed`. Good.
+- Mobile 390 and 360: no horizontal overflow (scrollWidth equals viewport). Rows keep the switch on the right, text wraps cleanly, master buttons stack full width, Refresh/Lock wrap under the store line. Good.
+- Phase line, store status (green dot plus text), history (newest first, local time, from -> to), PIN form (label, masked, `role="alert"` error with icon) and the PIN-disabled notice all render cleanly.
+- Noindex confirmed (`noindex, nofollow`), no shop header/footer, no GTM/Google/Contentsquare script. `robots.txt` has `Allow: /`, `Disallow: /demo-controls`, `Disallow: /api/`. Correct.
+- Badge colours: approved as is. funnel `accent-soft`/`accent-ink` 8.4, heatmaps `warning-soft`/`warning` 5.61, replay `sunken`/`ink-2`, errors `error-soft`/`error` 5.75; all AA, and the text label carries the meaning.
+- Phase A button (builder Q1): not needed for the workflow. A (baseline) is reached by turning the two error flags back with their switches, or All friction ON then Express OFF. Nice-to-have only (CR 1).
+
+### Change requests
+1. **Nice-to-have.** `components/demo-controls/ControlPanel.tsx`: optional fourth master button "Reset to defaults (Phase A)" (`btn-reset-defaults`, secondary variant, grid `sm:grid-cols-4`). Needs a one-line PLAN section 9 addition and a new API action, so only do it if the extra click during the live demo matters. Not required.
+2. **Nice-to-have.** `components/demo-controls/FlagRow.tsx`: for distance legibility, the ON/OFF word is `text-sm`. Put a `text-base font-semibold` "ON"/"OFF" label under or left of the switch (still keep `flag-state-<flag>` testid), or raise the text to `text-base`.
+3. **Nice-to-have.** `components/demo-controls/ControlPanel.tsx`: when no global store is configured, the PIN-gated panel was not exercised here (no PIN on that server); code review shows the warning style (`bg-warning-soft text-warning`, icon) and disabled switches are consistent. No change.
+
+No must-fix items.
+
+VERDICT: APPROVED
+
+## 2026-10-14 - M7 Final review
+
+Method: production build, `next start` on port 3000 (FLAG_STORE=memory, test PIN; stopped afterwards). Playwright at 1280, 390 and 360 px, `?friction=all:on`, `all:off` and default. Pages: home, bags/apparel/accessories/all PLPs, PDPs (trailhead-28-backpack, field-tote, storm-shell-jacket, daypack-18, grid-fleece-pullover), cart (empty, with item, promo block ON / collapsed OFF), checkout (clean and all-errors), confirmation no-order state, 404, /demo-controls (PIN gate, panel). No horizontal overflow on any page/width/mode; only console error was the expected 404 on the deliberate bad URL.
+
+### Verified
+- Switch `aria-disabled`: keyboard focus on a switch stays on the same switch (`flag-label-promoField`) through the busy state and after the toggle; Space toggles twice cleanly (state restored). Size 80x44.
+- HeroImage OFF: static hero paints immediately (no empty frame), only `/images/hero.svg` requested, never `/api/hero-image`. ON: static first, `/api/hero-image` requested about 70 ms after load, resolves after about 3 s (see CR 1).
+- DecoyBanner `select-none` present; strip still reads as a calm promo bar (390 and 1280).
+- Panel at 390 and 360: ON/OFF word is now `text-base font-semibold`, legible, no wrapping problems, no overflow.
+- OFF states are clean: no decoy strip, standard PDP with story after the CTA, real shipping line and collapsed promo disclosure on the cart, clean checkout errors (icon, red text, focus on first invalid field), 404 and no-order state on brand. ON states are subtle: promo block reads as a real upsell, decoy bar as a seasonal promo, buried-CTA PDP has believable specs/care copy.
+- Home, PLPs, footers, header, 360 px layouts: consistent, no regressions.
+
+### Builder question: shorten mobile PDP gallery?
+Yes, as a nice-to-have, not must-fix. Today Add to cart is at y 996 (390) and 1070 (360) because the gallery is `aspect-[4/5]` (about 448 px tall) plus a thumbnail row. Switching the mobile main image to square saves about 90 px (CTA to about y 906 at 390), which is a modest gain; it is not a first-screen CTA either way, so the benefit is small and it makes the product image smaller. If done: `components/product/ProductGallery.tsx` line 19, `aspect-[4/5]` -> `aspect-square lg:aspect-[4/5]` (keep desktop unchanged; if the no-arbitrary-values rule is enforced, add an aspect token instead). buriedCta ON stays clearly worse: Trailhead 28 Add to cart sits at roughly y 2600 on mobile (about 2.6x the OFF position, around 3 screens), versus about y 900 to 1000 OFF, so the contrast is preserved. Acceptable to skip.
+
+### Change requests
+1. **Must-fix.** `components/home/HeroImage.tsx`: with slowHero ON the hero no longer reads as slow. The static SVG is already painted, and changing `src` leaves the old image on screen until the new one decodes (verified: frame shows the hero at 0.2 s, 1.2 s, 2 s while `complete=false` for the slow URL, then swaps invisibly at 3 s). A visitor or replay sees no slow hero; only the network waterfall shows it. Fix: force a remount when the slow image takes over so the frame is blank until it arrives, e.g. compute `const useSlow = ready && slow;` and add `key={useSlow ? "slow" : "static"}` on `<Image>`. OFF is unaffected (key never changes, no `/api/hero-image` request). Optionally keep `priority`.
+2. **Nice-to-have.** `components/product/ProductGallery.tsx`: shorten the mobile gallery as described above (`aspect-square lg:aspect-[4/5]`).
+3. **Nice-to-have.** `components/demo-controls/ControlPanel.tsx`: optional "Reset to defaults (Phase A)" button (M6 CR 1), still not needed.
+
+VERDICT: CHANGES REQUESTED (one must-fix, CR 1)
+
+## M7 re-review (2026-10-14): CR 1 slowHero remount
+
+Production build, port 3000, Playwright at 1280 and 390.
+- slowHero ON (`?friction=slowHero:on`, and the bare URL, since the config default is ON): `src` swaps to `/api/hero-image`, the image is incomplete (nw=0) at 0.8 s and 1.8 s so the reserved frame is blank, then it is complete by 4.5 s. Frame size is constant (584x467 / 358x286), CLS 0.0000. Reads as slow again. Fixed.
+- slowHero OFF (`?friction=slowHero:off`): static `/images/hero.svg` is complete at 0.8 s, no empty frame, `/api/hero-image` never requested, CLS 0.
+- CR 2 (gallery) remains optional and unapplied: accepted.
+
+VERDICT: APPROVED

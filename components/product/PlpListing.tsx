@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { parseSort, sortProducts, type Product, type SortKey } from "@/lib/products";
+import { DecoyBanner } from "./DecoyBanner";
 import { ProductGrid } from "./ProductGrid";
 import { SortSelect } from "./SortSelect";
 
@@ -16,6 +17,7 @@ function Listing({
 }) {
   return (
     <>
+      <DecoyBanner />
       <div className="mb-6 flex justify-end md:mb-8">
         <SortSelect value={sort} onChange={onSortChange} disabled={!onSortChange} />
       </div>

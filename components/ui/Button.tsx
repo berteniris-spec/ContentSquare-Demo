@@ -5,7 +5,7 @@ export type ButtonVariant = "primary" | "secondary" | "ghost";
 export type ButtonSize = "md" | "sm";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-150 select-none disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-150 select-none disabled:cursor-not-allowed aria-disabled:cursor-not-allowed";
 
 const SIZES: Record<ButtonSize, string> = {
   md: "h-12 px-6 text-base",
@@ -14,9 +14,9 @@ const SIZES: Record<ButtonSize, string> = {
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-white hover:bg-accent-hover active:bg-accent-hover disabled:bg-sunken disabled:text-muted aria-busy:bg-accent! aria-busy:text-white! aria-busy:cursor-progress",
+    "bg-accent text-white hover:bg-accent-hover active:bg-accent-hover disabled:bg-sunken disabled:text-muted aria-disabled:bg-sunken aria-disabled:text-muted aria-busy:bg-accent! aria-busy:text-white! aria-busy:cursor-progress",
   secondary:
-    "border border-line-strong bg-surface text-ink hover:border-ink hover:bg-sunken disabled:text-muted disabled:border-line",
+    "border border-line-strong bg-surface text-ink hover:border-ink hover:bg-sunken disabled:text-muted disabled:border-line aria-disabled:text-muted aria-disabled:border-line",
   ghost:
     "h-11 px-2 text-sm text-ink-2 underline-offset-4 hover:text-ink hover:underline",
 };

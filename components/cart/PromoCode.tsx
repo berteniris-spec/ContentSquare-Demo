@@ -58,6 +58,7 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
           <Button
             variant="ghost"
             data-testid="promo-code-remove"
+            className="shrink-0 whitespace-nowrap"
             onClick={() => {
               removePromo();
               setMessage(null);
@@ -88,7 +89,7 @@ export function PromoCode({ variant = "collapsed" }: { variant?: PromoVariant })
           placeholder="Enter code"
           aria-invalid={message?.kind === "error" ? true : undefined}
           aria-describedby={message ? `${id}-msg` : undefined}
-          className={`${inputClasses} flex-1`}
+          className={`${inputClasses} xs:flex-1`}
         />
         <Button type="submit" variant="secondary" size="sm" data-testid="promo-code-apply" className="xs:h-12">
           Apply

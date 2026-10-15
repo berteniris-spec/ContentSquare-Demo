@@ -1,17 +1,30 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { SummaryRows } from "@/components/cart/SummaryRows";
 import { SummaryLines } from "@/components/checkout/CheckoutSummary";
 import { ButtonLink } from "@/components/ui/Button";
 import { CheckIcon } from "@/components/ui/icons";
-import { getLastOrderSnapshot, subscribeLastOrder } from "@/lib/order";
+import { getLastOrderSnapshot, markPurchaseTracked, subscribeLastOrder } from "@/lib/order";
+import { trackPurchase } from "@/lib/tracking/track";
+import { trackDynamicVariable } from "@/lib/tracking/uxa";
 
 const noopSubscribe = () => () => {};
 
 export function ConfirmationView() {
   const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const order = useSyncExternalStore(subscribeLastOrder, getLastOrderSnapshot, () => null);
+
+  const orderNumber = order?.orderNumber;
+  // purchase + order_value exactly once per order: re-read the stored flag so Strict Mode and reloads cannot repeat it.
+  useEffect(() => {
+    if (!orderNumber) return;
+    const fresh = getLastOrderSnapshot();
+    if (!fresh || fresh.orderNumber !== orderNumber || fresh.purchaseTracked) return;
+    markPurchaseTracked(orderNumber);
+    trackPurchase(fresh);
+    trackDynamicVariable("order_value", Number(fresh.total.toFixed(2)));
+  }, [orderNumber]);
 
   if (!hydrated) return <div className="min-h-64" aria-hidden="true" />;
 

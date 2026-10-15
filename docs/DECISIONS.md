@@ -2,6 +2,42 @@
 
 Newest first. Each entry: decision, why, date.
 
+## 2026-10-14 - M5 Tracking (built)
+
+1. **Open GA owner questions resolved with the planner defaults:** Q-GA2 Enhanced Measurement history events assumed ON (no manual `page_view`); Q-GA3 ecommerce events forwarded to GA4; Q-GA4 GA cookies accepted without a consent banner (to be stated in the traffic guide/privacy note in M7). If the owner later says otherwise, only `RouteTracker`/`track.ts` change.
+2. **Contentsquare virtual page views only on route changes and only after the tag loaded** (`window.__csLoaded`). Why: the tag records the natural first page view; pushing early would double count.
+3. **Both tags are absent on `/demo-controls`** (owner-confirmed) and RouteTracker is mounted in the shop layout, so the 404 page has tags and `data-page-type=not-found` but no `page_view`. Accepted.
+4. **`track()` calls `ensureGtag()` first**, so `js`/`config` always precede events in the shared `window.dataLayer`; only `view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, `purchase` are forwarded to `gtag('event')`.
+5. **`begin_checkout.value` = subtotal minus discount, no shipping**; `purchase.value` is the order total. `remove_from_cart` fires only on Remove, not on quantity steppers.
+6. **Tag ids are validated at build** (`G-[A-Z0-9]+`, alphanumeric CS id); an invalid value turns the tag off rather than injecting it into a URL. Covered by `npm run test:variants`.
+7. **Dev-only Strict Mode double `view_item` found by Tester, fixed by Builder (guard in `PurchasePanel`).** Production was unaffected.
+8. **Verified with stubs only.** GA4 Realtime/DebugView and the real Contentsquare UI need manual checks after deploy (`docs/DEPLOYMENT.md`).
+
+## 2026-10-14 - M4 Friction flags (local)
+
+1. **Strict postcode rule: `^\d{4}[A-Z]{2}$` or `^\d{4,5}$`, message "Invalid input."** Why: it rejects the natural Dutch entries (`1234 AB`, `1234ab`) on the first attempt with an unhelpful message, which is the error-analysis story, while `1234AB` and numeric BE/DE/FR codes still pass so a user can recover. Code: `lib/checkout/validation.ts`.
+2. **Friction targets are one product each:** `trailhead-28-backpack` (buriedCta), `field-tote` Moss (deadSwatch), `storm-shell-jacket` (silentSize). Why: keeps the other 21 products clean so heatmap/replay comparisons have a control. Constants in `lib/config.ts`.
+3. **`expressShippingError` throws a real `TypeError`** ("Cannot read properties of undefined (reading 'rate')") from a zone lookup with no entry for postcodes starting `10`, not a thrown custom message. Why: Contentsquare error analysis then shows a realistic stack and message. Standard shipping recovers. Code: `lib/checkout/expressRate.ts`.
+4. **Overrides apply after hydration; server and first client render use env + defaults.** Why: avoids hydration mismatches. `useFlags().ready` marks when overrides are applied; `HeroImage` renders only when ready so OFF never requests `/api/hero-image`. Cost: a briefly empty hero frame (M7 backlog).
+5. **Global flag layer is an empty stub until M6, with no `/api/flags` fetch.** Why: the route does not exist yet and a 404 would log a console error.
+6. **e2e server sets all nine `NEXT_PUBLIC_FRICTION_*` to `off`** (`playwright.config.ts`); friction tests flip flags with `?friction=`. Why: keeps the M1-M3 specs asserting clean behaviour while code defaults ship with 8 flags ON.
+7. **M4 folded in the deferred nice-to-haves** M2 CR 5-6 and M3 CR 8-9; Designer confirmed all landed. Remaining nice-to-haves go to M7 (HeroImage empty frame, optional `select-none` on DecoyBanner).
+
+## 2026-10-14 - Google Analytics (planned, M5)
+
+1. **Add GA4 (gtag.js, measurement id `G-4PLJ26X0Y9`) on every shop page, implemented with `next/script` in a `GoogleAnalyticsTag` client component in the root layout.** Configurable via `NEXT_PUBLIC_GA_ID` (default `G-4PLJ26X0Y9`, validated `G-XXXX`) and `NEXT_PUBLIC_GA_ENABLED` (default `true`).
+   Why: owner request. `@next/third-parties/google` exists for Next 16 but is not installed and would be a new runtime dependency (the plan allows only next/react/react-dom); `next/script` mirrors the supplied snippet and lets us skip the tag per pathname like the Contentsquare tag. Placed in M5 because it shares `window.dataLayer`, `track()` and the test fixture with the other tags.
+2. **Not loaded on `/demo-controls`** (owner-confirmed 2026-10-14). Why: internal panel, would pollute analytics and the panel is noindex; same rule as the Contentsquare tag. GA is present on all shop routes (and the 404 page), absent on `/demo-controls` and when disabled.
+3. **Shared `window.dataLayer`:** initialised once with `|| []`, never reassigned. `track()` keeps pushing plain `{ event, ... }` objects (Contentsquare/GTM style); `gtag()` pushes `arguments` objects. GA never reads the plain objects, so they cannot double count. Ecommerce events (`view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, `purchase`) are additionally forwarded with `gtag('event', ...)` from the same `track()` call (pending Q-GA3), so `purchase` is sent once, under the existing `purchaseTracked` guard.
+4. **No manual GA `page_view` on SPA navigation:** rely on GA4 Enhanced Measurement history-change page views (pending Q-GA2 confirmation that it is on in the property). A manual one would double count.
+5. **No cookie banner (unchanged, Q5).** GA sets `_ga` cookies; TRAFFIC_GUIDE/privacy must say so. No Consent Mode.
+6. **Tests never send real hits:** Playwright stubs googletagmanager.com and google-analytics.com like t.contentsquare.net.
+
+Open owner questions:
+- **Q-GA2:** is "Page changes based on browser history events" enabled under Enhanced Measurement in the GA4 property? Default: assume yes (GA4 default). Options: yes (no manual page_view) / no or unsure (builder adds `send_page_view:false` + manual `page_view` in RouteTracker).
+- **Q-GA3:** forward ecommerce events (add_to_cart, purchase, ...) to GA4 as well, or page views only? Default: forward (small, one code path). Options: forward / page views only / forward later.
+- **Q-GA4:** GA loads without consent and sets cookies, and demo/localhost traffic will count in the property. Accept? Default: accept, document in TRAFFIC_GUIDE, owner creates an internal-traffic filter in GA4 if wanted, and sets `NEXT_PUBLIC_GA_ENABLED=false` in `.env.local`. Options: accept / add a minimal consent note in the footer / implement Consent Mode (not recommended, out of scope).
+
 ## 2026-10-14 - M3 Cart, checkout, confirmation
 
 1. **New theme breakpoint `xs` (`--breakpoint-xs: 22.5rem`, 360 px) in `app/globals.css` `@theme`, used instead of arbitrary `min-[360px]:` variants.**
@@ -54,3 +90,35 @@ Newest first. Each entry: decision, why, date.
 
 ## 2026-10-14 - Agents run as general-purpose subagents
 The orchestrating session started in the parent folder, so project agents in `.claude/agents/` were not registered. Each role is run as a general-purpose subagent instructed to read and follow its role file. Sessions opened inside the repo can use the named agents directly.
+
+## 2026-10-14 - Vercel setup
+1. **Vercel project named `tidewild-demo` (lowercase), scope `berteniris-spec`, linked to the GitHub repo.**
+   Why: Vercel project names must be lowercase and the folder name has capitals. Git link gives auto-deploys on push.
+2. **Vercel Authentication (SSO protection) turned off via `vercel project protection disable tidewild-demo --sso`.**
+   Why: it is on by default and blocks both visitors and the Contentsquare tag. The CLI is used because the dashboard may not show the setting and the Vercel MCP token has no access to this scope (403).
+3. **`FLAG_STORE` left unset on Production.**
+   Why: it auto-detects Upstash from the injected `KV_*` vars, and `memory` is refused on Vercel. Upstash for Redis (`upstash-kv-camel-park`) was provisioned with `vercel integration add upstash/upstash-kv`, as decided in the Planner answers.
+4. **`DEMO_CONTROLS_PIN` is a sensitive Vercel env var and is not recorded in the repo.** The owner holds it.
+
+## 2026-10-14 - M6 live toggles and control panel
+1. **Auth by `x-demo-pin` header, no cookie; PIN kept in sessionStorage `tw-demo-pin`, cleared by Lock.** Compare via SHA-256 + `timingSafeEqual`; wrong PIN delayed about 500 ms; unset PIN disables the panel.
+   Why: no session infrastructure needed, nothing persists beyond the tab, and the public read API stays cacheable.
+2. **Public `GET /api/flags` is CDN-cached (`s-maxage=10`, `stale-while-revalidate=20`) and returns no history.**
+   Why: cheap for visitors; a flip reaches new visitors in about 60 s. Auth'd panel routes are `no-store`.
+3. **Store selection: `none` > `memory` (refused on Vercel) > `upstash` > auto-detect; Upstash via plain `fetch`, 1500 ms timeout, key `tw:friction`.**
+   Why: no SDK dependency; `memory` must never be usable in production, and e2e must never reach the real store (the M6 config blanks all Upstash vars).
+4. **Unconfigured or failing store never breaks the shop** (200 `configured:false` / `error:true`; flags fall back to env then defaults). The panel surfaces 503/502.
+5. **`FlagsProvider.ready` waits up to 1.5 s for the global fetch.**
+   Why: `page_view` and `friction_*` variables must carry the right flag state; trade-off is a `page_view` up to about 1.5 s late.
+6. **Read-modify-write without locking; history capped at 30 (20 shown).** Accepted for a single presenter.
+7. **Separate Playwright config `playwright.m6.config.ts` (`npm run test:m6`).**
+   Why: panel tests mutate the global store and need five differently configured servers, so they cannot share the main suite.
+8. **Reset-to-defaults button deferred to M7, then deliberately not applied** (needs a PLAN section 9 line and a new API action; the panel's All friction OFF / per-switch controls cover the need).
+
+## M7 (2026-10-15)
+
+1. **Designer M7 outcome: APPROVED.** CR 1 (hero slow-visibility / empty frame) fixed and re-approved. CR 2 (gallery tweak `aspect-square lg:aspect-[4/5]`) and the Reset-to-defaults button deliberately not applied.
+2. **Optional `scripts/traffic/` persona script not built.** Why: hand-made sessions are more convincing and the bot-filtering caveat applies; `TRAFFIC_GUIDE.md` covers manual generation.
+3. **Focus-drop item fixed (post-M7):** panel master buttons use `aria-disabled` and ignore clicks while busy instead of `disabled`; focus is kept (accepted trade-off: they stay focusable and are announced as unavailable). The 8 expected-failure tests were un-marked.
+4. **Bare deployment shows the baseline (8 flags ON).** Why: code defaults are the Phase A state; the clean state is explicit (`?friction=all:off` or All friction OFF).
+5. **GA cookies without a banner** (Q-GA4/Q5) documented in `TRAFFIC_GUIDE.md` section 3, along with GA4 internal-traffic filtering.

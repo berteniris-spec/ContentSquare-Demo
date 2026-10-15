@@ -23,7 +23,7 @@ Status: **final**. All planner questions are answered (recommended defaults acce
 | M2 | Catalogue and cart store | Homepage, PLP with sort, PDP (gallery, swatches, sizes, qty, related), cart store with persistence, header count, mini-cart drawer |
 | M3 | Cart, checkout, confirmation | Cart page, promo `DEMO10`, shipping rule, single-page checkout with validation and processing state, confirmation, cart clear |
 | M4 | Friction flags (local) | `lib/config.ts` flags, resolver (URL override > global placeholder > env > config), `FlagsProvider`, all 9 friction behaviours ON/OFF |
-| M5 | Tracking | Contentsquare tag, virtual page views, dynamic variables (friction state, order value), data layer events, `data-page-type`, `data-testid` audit |
+| M5 | Tracking | Contentsquare tag, Google Analytics 4 (gtag.js) tag, virtual page views, dynamic variables (friction state, order value), data layer events (also forwarded to GA4), `data-page-type`, `data-testid` audit |
 | M6 | Live toggles and control panel | Flag store adapter(s) + memory store, `/api/flags`, PIN-protected write API, `/demo-controls` panel with master buttons and `flagHistory`, graceful fallback |
 | M7 | Hardening, polish, handover | Full regression desktop/mobile, a11y polish, optional traffic script, final docs (DEPLOYMENT, DEMO_SCRIPT, TRAFFIC_GUIDE), manual steps list |
 
@@ -33,7 +33,7 @@ Per-milestone loop (from brief): builder -> designer -> tester -> documenter; De
 
 ```
 app/
-  layout.tsx                 # <html>/<body>, global CSS, FlagsProvider, ContentsquareTag, PageTypeSync, default metadata
+  layout.tsx                 # <html>/<body>, global CSS, FlagsProvider, ContentsquareTag, GoogleAnalyticsTag, PageTypeSync, default metadata
   globals.css                # Tailwind v4 import + @theme tokens from DESIGN_TOKENS.md
   robots.ts                  # disallow /demo-controls
   not-found.tsx
@@ -62,7 +62,7 @@ components/
   checkout/    CheckoutForm.tsx, ShippingMethod.tsx, PaymentFields.tsx, DemoBanner.tsx, CheckoutSummary.tsx
   confirmation/ConfirmationView.tsx
   demo-controls/PinGate.tsx, ControlPanel.tsx, FlagRow.tsx, HistoryList.tsx
-  tracking/    ContentsquareTag.tsx, RouteTracker.tsx, PageTypeSync.tsx
+  tracking/    ContentsquareTag.tsx, GoogleAnalyticsTag.tsx, RouteTracker.tsx, PageTypeSync.tsx
   ui/          Button.tsx, Price.tsx, Field.tsx, Switch.tsx (only what is reused)
 lib/
   config.ts              # FRICTION defaults, FLAG_META, shop constants (threshold, rates, promo, special product slugs)
@@ -80,8 +80,9 @@ lib/
   flags/pin.ts           # constant-time PIN check (server only)
   tracking/track.ts      # dataLayer push helper
   tracking/uxa.ts        # Contentsquare _uxa helpers (guarded)
+  tracking/ga.ts         # GA4 helpers: GA_ID/enabled resolution, ensureGtag() (idempotent dataLayer + gtag init), sendGaEvent()
   tracking/pageType.ts   # pathname -> page type
-types/global.d.ts        # window._uxa, window.dataLayer
+types/global.d.ts        # window._uxa, window.dataLayer (typed `unknown[]`: gtag pushes Arguments objects), window.gtag, window.__gaInit
 public/images/hero.svg   # light hero (clean)
 tests/                   # Playwright specs (tester owned) + playwright.config.ts at root
 docs/                    # BRIEF, PLAN, DECISIONS, DESIGN_TOKENS, DESIGN_REVIEW, TEST_REPORT + documenter files
@@ -205,6 +206,8 @@ Query strings allowed: `?sort=featured|price-asc|price-desc` on PLP (absent = fe
 |---|---|---|---|
 | `NEXT_PUBLIC_CS_TAG_ID` | client | `506730812ef03` | Builds `https://t.contentsquare.net/uxa/${id}.js` |
 | `NEXT_PUBLIC_CS_ENABLED` | client | `true` | `false` = no tag, no `_uxa` pushes (dataLayer still works) |
+| `NEXT_PUBLIC_GA_ID` | client | `G-4PLJ26X0Y9` | GA4 measurement id. Must match `/^G-[A-Z0-9]+$/` (checked in `lib/tracking/ga.ts`, otherwise GA is treated as disabled and the id is never put into a script URL). Empty = disabled. |
+| `NEXT_PUBLIC_GA_ENABLED` | client | `true` | `false` = no gtag.js request, no `gtag()` calls, no dataLayer `config`/`js` entries (the plain dataLayer events still work). Recommended in `.env.local` for local dev so localhost hits do not reach the real property. |
 | `DEMO_CONTROLS_PIN` | server | unset (panel disabled) | PIN for panel and write API (6+ digits; user sets it in Vercel and `.env.local`; tests use `246810`) |
 | `NEXT_PUBLIC_FRICTION_<FLAG>` | client, build-time | unset | `on`/`off` (also `true`/`false`, `1`/`0`). Names: `PROMO_FIELD`, `SHIPPING_SURPRISE`, `DECOY_BANNER`, `BURIED_CTA`, `DEAD_SWATCH`, `SILENT_SIZE`, `SLOW_HERO`, `POSTCODE_VALIDATION`, `EXPRESS_SHIPPING_ERROR`. Must be read with literal `process.env.NEXT_PUBLIC_FRICTION_PROMO_FIELD` etc. Changing requires redeploy (by design: it is the default layer). |
 | `FLAG_STORE` | server | auto-detect | `upstash`, `memory`, `none`. Auto: Upstash vars present -> upstash; else none. `memory` must be set explicitly and is refused when `process.env.VERCEL` is set (local dev and Playwright only). |
@@ -238,6 +241,16 @@ Master buttons: "All friction ON" (all 9 ON), "All friction OFF" (all 9 OFF), "O
 
 ## 8. Tracking contract
 
+- **Google Analytics 4** (`GoogleAnalyticsTag`, client, in `app/layout.tsx` next to `ContentsquareTag`; see decision in DECISIONS 2026-10-14 "Google Analytics"):
+  - Implementation: `next/script`, not `@next/third-parties/google`. Both are documented for Next 16 (`node_modules/next/dist/docs/01-app/02-guides/third-party-libraries.md`), but `@next/third-parties` is not installed, the plan keeps runtime dependencies to `next`, `react`, `react-dom`, and its component cannot be switched off per pathname without wrapping it anyway. `next/script` reproduces the owner's snippet exactly.
+  - Renders nothing when GA is disabled (`NEXT_PUBLIC_GA_ENABLED === 'false'` or invalid/empty `NEXT_PUBLIC_GA_ID`) or when pathname starts with `/demo-controls` (internal panel; owner-confirmed decision). Otherwise renders `<Script id="ga-src" src="https://www.googletagmanager.com/gtag/js?id=<GA_ID>" strategy="afterInteractive" />` and calls `ensureGtag()`.
+  - `ensureGtag()` (`lib/tracking/ga.ts`) is idempotent (guard `window.__gaInit`): `window.dataLayer = window.dataLayer || []` (never reassigned), defines `window.gtag = function(){ dataLayer.push(arguments) }` (must push `arguments`, not an array: gtag.js ignores arrays), then queues `gtag('js', new Date())` and `gtag('config', GA_ID)` once. This is the snippet's behaviour, but it can also be triggered by `track()` before the script component has rendered, so `js`/`config` are always first in the queue and events fired early (e.g. `view_item` on PDP mount) are replayed by gtag.js in order and not lost. Do not use `beforeInteractive` (it cannot be pathname-aware).
+  - `config` is sent exactly once per full page load with default settings (no `send_page_view:false`). GA4 sends the initial `page_view` itself.
+  - SPA route changes: NO manual GA `page_view`. GA4 Enhanced Measurement ("Page changes based on browser history events", on by default) sends `page_view` on `history.pushState`. A manual one would double count. The owner confirms this setting (Q-GA2). Fallback if it is off in the property: `send_page_view:false` plus a manual `gtag('event','page_view')` in `RouteTracker` (not planned).
+  - The existing plain-object dataLayer `page_view` (below) is a Contentsquare/GTM-style payload only. It is never forwarded to `gtag()`.
+  - Coexistence on `window.dataLayer`: one array, two entry shapes. `track(event, data)` pushes plain objects `{ event, ...data }` (unchanged, gtag.js ignores them without GTM). `gtag()` pushes `Arguments` objects. Tests must tell them apart (`Array.isArray(e)` is false for both; use `typeof e.event === 'string'` vs `e[0] === 'event'`).
+  - Ecommerce forwarding (default yes, Q-GA3): inside `track()`, for `view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout` and `purchase` only, also call `sendGaEvent(name, data.ecommerce)` = `gtag('event', name, ecommerce)` (the GA4 recommended names and parameters already match). Single code path, so each business event reaches GA at most once: `purchase` is inside the same `purchaseTracked` guard as the dataLayer push and `order_value`, so reload of `/confirmation` does not resend it. Never forward `page_view`, friction data, email or any PII. Friction state is not sent to GA (it is a Contentsquare feature); optional later: `gtag('set','user_properties',{friction_profile})` (not planned).
+  - Cookies: GA4 sets `_ga`/`_ga_<id>` first-party cookies. No consent banner per DECISIONS Q5, so the TRAFFIC_GUIDE/privacy note (M7 documenter) must say so; no Consent Mode is implemented.
 - `ContentsquareTag` (client, in `app/layout.tsx`): unless `NEXT_PUBLIC_CS_ENABLED === 'false'` or pathname starts with `/demo-controls`, renders an inline `window._uxa = window._uxa || [];` and `<Script src=... strategy="afterInteractive" onLoad={...}>` setting `window.__csLoaded = true`.
 - Initial page: no manual `trackPageview` (the tag sends the natural page view). Dynamic variables for the initial page are pushed to `_uxa` once flags are `ready` (queued if the tag has not loaded yet).
 - Route change (pathname or search changes after first render): if `__csLoaded`, push `['trackPageview', pathname + search]`, then the dynamic variables. Not before the script has loaded.
@@ -339,6 +352,16 @@ General flag criteria: each flag is read only through the resolver; `?friction=<
 - dataLayer events and payloads exactly as in section 8; `data-page-type` correct on every route.
 - All selectors in section 8 present.
 
+### Google Analytics (M5)
+- With defaults, every shop route (`/`, `/category/all`, a PLP, a PDP, `/cart`, `/checkout`, `/confirmation`, the 404 page) requests `https://www.googletagmanager.com/gtag/js?id=G-4PLJ26X0Y9` exactly once per full page load, and the document has a single such `<script>`.
+- `window.dataLayer` is an array containing, in this order before any event, `['js', Date]` and `['config', 'G-4PLJ26X0Y9']` (as `Arguments` objects), once only, even after several client-side navigations. Plain-object events from `track()` are unchanged in shape and order.
+- `/demo-controls` (owner-confirmed exclusion; direct load): no googletagmanager/google-analytics request, no `window.gtag`, no `config` entry, no GA script tag.
+- `NEXT_PUBLIC_GA_ENABLED=false` (or empty/invalid `NEXT_PUBLIC_GA_ID`): no GA request, no script tag, no `window.gtag`, no `js`/`config` entries; the shop, Contentsquare tag and plain dataLayer events behave as before.
+- Overriding `NEXT_PUBLIC_GA_ID` changes the script URL and the `config` argument.
+- No manual `page_view` is sent via `gtag` on route change (no `['event','page_view']` entries); GA events: exactly one `['event','add_to_cart', ecommerce]` per successful add (none when silentSize blocks), `['event','purchase', ecommerce]` exactly once per order (not on reload of `/confirmation`), with the same `transaction_id`/`value`/`items` as the plain `purchase` push; no email/PII in any entry.
+- No console errors or page errors introduced by GA (stubbed in tests); `npm run lint`, `tsc`, `build` pass; no new dependency.
+- Manual, after deploy (cannot be automated): GA4 Realtime / DebugView shows page views for hard loads and SPA navigations (each once), and a test purchase appears once.
+
 ### Live toggles
 - With a store configured (memory store locally), toggling `expressShippingError` in the panel changes the behaviour for a new browser context (no overrides) within 60 s (locally: immediately on next page load). `/api/flags` returns `s-maxage <= 10` and `stale-while-revalidate <= 20`.
 - OFF removes the error completely (no console error, Pay works with Express + matching postcode).
@@ -374,10 +397,10 @@ General flag criteria: each flag is read only through the resolver; `?friction=<
 - Documenter: FRICTION_FLAGS (each flag, capability, how it shows in Contentsquare, resolution order, env vars), DECISIONS for postcode/product choices.
 
 ### M5 Tracking
-- Builder: `ContentsquareTag`, `RouteTracker`, `PageTypeSync`, `lib/tracking/*`; all dataLayer events; dynamic variables incl. friction state and `order_value`; audit all `data-testid`s from section 8.
-- Designer: quick check that no visual regressions (light review; may approve with no findings).
-- Tester: script request (stubbed), not on `/demo-controls`, not when disabled (separate build or documented manual check), `_uxa` pushes on route change, dynamic vars values for several flag states, dataLayer payloads for every event, purchase once, `data-page-type`, selector presence.
-- Documenter: TRACKING.md complete with payload examples.
+- Builder: `ContentsquareTag`, `GoogleAnalyticsTag` + `lib/tracking/ga.ts` (section 8 GA rules, `next/script`, no new dependency), `RouteTracker`, `PageTypeSync`, `lib/tracking/*`; GA env vars in `.env.example`, `types/global.d.ts`; all dataLayer events (ecommerce ones forwarded to `gtag` via `track()`); dynamic variables incl. friction state and `order_value`; audit all `data-testid`s from section 8.
+- Designer: quick check that no visual regressions (light review; may approve with no findings). GA adds no UI.
+- Tester: extend the shared fixture to also stub `googletagmanager.com`, `*.google-analytics.com`, `analytics.google.com` (and `stats.g.doubleclick.net`) like `t.contentsquare.net` (record `gaRequests`, answer the gtag/js request with a no-op script so `window.dataLayer` entries stay inspectable; no real hits ever); GA specs per section 9 'Google Analytics' (script once per route, dataLayer order and dedupe, absent on `/demo-controls`, no manual `page_view`, `add_to_cart`/`purchase` forwarded once, purchase not repeated on reload, `NEXT_PUBLIC_GA_ENABLED=false` via separate build or documented manual check, same approach as CS); CS script request (stubbed), not on `/demo-controls`, not when disabled (separate build or documented manual check), `_uxa` pushes on route change, dynamic vars values for several flag states, dataLayer payloads for every event, purchase once, `data-page-type`, selector presence.
+- Documenter: TRACKING.md complete with payload examples, plus a Google Analytics section (env vars, `next/script` choice, exclusion of `/demo-controls`, dataLayer coexistence, event forwarding, no manual SPA `page_view`, cookies note, post-deploy GA4 check). Update `.env.example` docs mention in DEPLOYMENT only if the orchestrator asks (DEPLOYMENT.md is not edited by the planner).
 
 ### M6 Live toggles and control panel
 - Builder: `lib/flags/store/*` (`upstash.ts` + `memory.ts`), `getStore()` autodetect, `/api/flags`, `/api/demo-controls/flags` (GET/POST, PIN, history), `lib/flags/pin.ts`, panel UI, profile display, fallback states, `robots.ts`.
@@ -421,10 +444,10 @@ Shared prefix for every prompt (orchestrator prepends): "You are acting as the `
 - **documenter:** "Update docs after milestone M4 per docs/PLAN.md section 10-M4 (FRICTION_FLAGS.md is the main deliverable)."
 
 ### M5
-- **builder:** "Build milestone M5 per docs/PLAN.md section 8 (tracking contract and selectors) and section 10-M5. Acceptance: section 9 'Tracking'."
+- **builder:** "Build milestone M5 per docs/PLAN.md section 8 (tracking contract incl. the Google Analytics bullet, and selectors) and section 10-M5. Acceptance: section 9 'Tracking' and 'Google Analytics (M5)'. Google Analytics: add GA4 (measurement id default `G-4PLJ26X0Y9`, env `NEXT_PUBLIC_GA_ID`, off switch `NEXT_PUBLIC_GA_ENABLED`) with `next/script` (do NOT add `@next/third-parties` or any dependency), via a `GoogleAnalyticsTag` client component in `app/layout.tsx` that renders nothing on `/demo-controls` or when disabled, plus `lib/tracking/ga.ts` with idempotent `ensureGtag()` and `sendGaEvent()`; the owner's snippet equivalent is `window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments)} gtag('js', new Date()); gtag('config','G-4PLJ26X0Y9')` plus the async gtag/js script. Keep one shared `window.dataLayer` (never reassign it), keep the plain-object payload shapes from section 8, forward only view_item/add_to_cart/remove_from_cart/begin_checkout/purchase to `gtag('event', ...)` from inside `track()` (purchase inside the existing `purchaseTracked` guard), no manual page_view. Add the two env vars to `.env.example` and `window.gtag`/`__gaInit` to `types/global.d.ts`; read env vars with literal `process.env.NEXT_PUBLIC_*`."
 - **designer:** "Light review of milestone M5: confirm no visual or a11y regressions from tracking/selector changes."
-- **tester:** "Test milestone M5 per docs/PLAN.md section 10-M5 and section 8: CS script (stubbed), virtual page views, dynamic variables for different flag states, every dataLayer event payload, purchase once, data-page-type, selectors, no tag on /demo-controls."
-- **documenter:** "Update docs after milestone M5: complete TRACKING.md with payload examples per docs/PLAN.md section 8."
+- **tester:** "Test milestone M5 per docs/PLAN.md section 10-M5 and section 8 and section 9 'Google Analytics (M5)': stub googletagmanager.com / google-analytics.com in the shared fixture so no real GA hit is ever sent; GA script once per shop route, absent on /demo-controls, dataLayer js/config once and in order, no manual page_view, add_to_cart and purchase forwarded exactly once (purchase not repeated on reload); disabled state via separate build or documented manual check; CS script (stubbed), virtual page views, dynamic variables for different flag states, every dataLayer event payload, purchase once, data-page-type, selectors, no tag on /demo-controls."
+- **documenter:** "Update docs after milestone M5: complete TRACKING.md with payload examples per docs/PLAN.md section 8, including the Google Analytics section (see 10-M5). Do not edit DEPLOYMENT.md or DESIGN_REVIEW.md. Add to the M7 notes that TRAFFIC_GUIDE/privacy must mention GA cookies."
 
 ### M6
 - **builder:** "Build milestone M6 per docs/PLAN.md sections 5 (API routes), 6 (env vars), 7 (live behaviour) and 10-M6, using Upstash Redis via REST `fetch` (no SDK) plus the memory store for local/testing; no Edge Config. Acceptance: section 9 'Control panel' and 'Live toggles'."
@@ -436,7 +459,7 @@ Shared prefix for every prompt (orchestrator prepends): "You are acting as the `
 - **builder:** "Milestone M7 per docs/PLAN.md section 10-M7: fix the open items listed below [orchestrator pastes backlog], optional traffic script, final lint/type/build."
 - **designer:** "Final review M7: whole site, all flags ON and all OFF, desktop and 390 px, against docs/PLAN.md section 9. Approve or list must-fix items."
 - **tester:** "Final regression M7: run every spec on both viewports, all acceptance criteria in docs/PLAN.md section 9; produce the final TEST_REPORT.md."
-- **documenter:** "Final docs M7 per docs/PLAN.md section 10-M7: DEMO_SCRIPT, TRAFFIC_GUIDE, DEPLOYMENT (incl. Contentsquare domain allow-listing), README, CLAUDE.md, PROJECT_STATUS with the user's manual steps."
+- **documenter:** "Final docs M7 per docs/PLAN.md section 10-M7: DEMO_SCRIPT, TRAFFIC_GUIDE (incl. a note that Google Analytics 4 sets `_ga` cookies with no consent banner, and to filter internal/demo traffic in GA4 if wanted), DEPLOYMENT (incl. Contentsquare domain allow-listing), README, CLAUDE.md, PROJECT_STATUS with the user's manual steps."
 
 ## 12. Decisions (answered 2026-10-14, all recommended defaults; details in docs/DECISIONS.md)
 
@@ -445,8 +468,10 @@ Shared prefix for every prompt (orchestrator prepends): "You are acting as the `
 3. **Defaults/phases:** all flags ON except `expressShippingError` OFF. Profiles: `express_error` / `clean` / `fixed` / `baseline` as in section 7. Phase A = defaults (baseline), B = turn express error ON, C = "Only fix errors" (fixed).
 4. **Geography:** countries NL (default), BE, DE, FR; express error trigger `/^10/`; strict postcode mode as in section 9.
 5. **Cookie consent:** no banner; TRAFFIC_GUIDE notes configuring Contentsquare privacy settings accordingly.
+6. **Google Analytics 4 (added 2026-10-14):** gtag.js with `G-4PLJ26X0Y9` via `next/script` in M5; env `NEXT_PUBLIC_GA_ID` / `NEXT_PUBLIC_GA_ENABLED`; excluded on `/demo-controls` (owner-confirmed); ecommerce events forwarded to GA4 (pending Q-GA3); SPA page views left to GA4 Enhanced Measurement (Q-GA2).
 
 ## 13. Change log
 - 2026-10-14: initial plan (no user answers yet; Q1-Q5 provisional).
 - 2026-10-14: finalized with the user's answers (all defaults). Removed provisional markers; removed Edge Config / `VERCEL_API_TOKEN` / `VERCEL_TEAM_ID` paths (Upstash + memory only); section 12 turned into decisions; M1 builder prompt made self-contained.
 - 2026-10-14 (M1): section 4 `Silhouette` adds `daypack` (daypack-18) and `zip-wallet` (travel-wallet) after Designer review, so all 24 products have distinct drawings.
+- 2026-10-14 (GA): added Google Analytics 4 (gtag.js, `G-4PLJ26X0Y9`) at the owner's request. Placed in M5 (it is a tracking tag sharing `window.dataLayer`, `track()` and the Playwright tag-stub fixture; M5 not yet started). Changes: milestone table, section 3 files, section 6 env vars, section 8 GA bullet, section 9 'Google Analytics (M5)', section 10-M5 tasks, section 11 M5 and M7 prompts, section 12 item 6. Chose `next/script` over `@next/third-parties` (no new dependency, pathname exclusion, matches the snippet). Owner confirmed the `/demo-controls` exclusion (Q-GA1 closed). Open owner questions Q-GA2..Q-GA4 listed in DECISIONS.

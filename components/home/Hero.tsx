@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { ButtonLink } from "@/components/ui/Button";
+import { HeroImage } from "./HeroImage";
 
 export function Hero() {
   return (
@@ -18,16 +18,7 @@ export function Hero() {
           </div>
         </div>
         <div className="mt-10 aspect-[5/4] overflow-hidden rounded-xl bg-image lg:mt-0">
-          <Image
-            data-testid="hero-image"
-            src="/images/hero.svg"
-            alt=""
-            width={1200}
-            height={960}
-            unoptimized
-            priority
-            className="h-full w-full object-cover"
-          />
+          <HeroImage />
         </div>
       </div>
     </section>

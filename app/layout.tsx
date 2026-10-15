@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { SkipLink } from "@/components/layout/SkipLink";
+import { ContentsquareTag } from "@/components/tracking/ContentsquareTag";
+import { GoogleAnalyticsTag } from "@/components/tracking/GoogleAnalyticsTag";
+import { PageTypeSync } from "@/components/tracking/PageTypeSync";
+import { FlagsProvider } from "@/lib/flags/FlagsProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-GB" className="h-full">
       <body className="flex min-h-full flex-col bg-canvas font-sans text-base text-ink-2 antialiased">
         <SkipLink />
-        {children}
+        <FlagsProvider>{children}</FlagsProvider>
+        <ContentsquareTag />
+        <GoogleAnalyticsTag />
+        <PageTypeSync />
       </body>
     </html>
   );

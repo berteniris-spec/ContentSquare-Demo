@@ -1,6 +1,6 @@
 # Architecture
 
-Status: reflects the code after M3. Planned parts are marked with their milestone. Full target structure: `docs/PLAN.md` section 3.
+Status: reflects the code after M6. Planned parts are marked with their milestone. Full target structure: `docs/PLAN.md` section 3.
 
 ## Stack
 
@@ -12,29 +12,35 @@ Status: reflects the code after M3. Planned parts are marked with their mileston
 
 ```
 app/
-  layout.tsx            # <html lang="en-GB">, globals.css, SkipLink, default metadata
+  layout.tsx            # <html lang="en-GB">, globals.css, SkipLink, default metadata; FlagsProvider around children, then ContentsquareTag, GoogleAnalyticsTag, PageTypeSync
   globals.css           # Tailwind v4 import + @theme tokens (DESIGN_TOKENS.md), incl. --breakpoint-xs 22.5rem
   icon.svg              # favicon (tide glyph)
   not-found.tsx         # branded 404 with shop chrome
   (shop)/               # route group, no URL segment
-    layout.tsx          # CartProvider > ShopShell + MiniCartDrawer (RouteTracker: M5)
+    layout.tsx          # CartProvider > ShopShell + MiniCartDrawer + RouteTracker (in Suspense)
     page.tsx            # /  Hero, CategoryTiles, FeaturedRow, ValuesStrip, NewsletterSignup
     category/[slug]/    # /category/bags|apparel|accessories|all, static, dynamicParams=false; PlpListing in Suspense
     product/[slug]/     # /product/<slug>, static, dynamicParams=false; ProductDetail + story + RelatedProducts
     cart/               # /cart  H1 + CartView
     checkout/           # /checkout  H1 + DemoBanner + CheckoutForm
     confirmation/       # /confirmation  ConfirmationView
-  demo-controls/        # layout: robots noindex,nofollow, minimal chrome; page placeholder (M6)
+  api/hero-image/route.ts  # slowHero: force-dynamic SVG, ~3.0 s delay, ~1.73 MB (12,000 strokes), no-store
+  api/flags/route.ts       # GET public global flags (CDN-cached s-maxage=10, swr=20); body {configured, store, flags, updatedAt}
+  api/demo-controls/flags/route.ts # GET/POST, PIN via x-demo-pin, no-store; toggle / all_on / all_off / only_fix_errors
+  demo-controls/        # layout: robots noindex,nofollow, minimal chrome (no tags); page renders ControlPanel with isPinConfigured()
+  robots.ts             # disallow /demo-controls and /api/
 components/
   cart/     CartView (client), CartLineItem, OrderSummary, SummaryRows (shared by cart/checkout/confirmation),
             PromoCode (client), FreeShippingHint, EmptyCart (also used for the empty checkout)
+  demo-controls/ ControlPanel (client: PIN, fetches, state), FlagRow, Switch (role=switch), History, types
   checkout/ CheckoutForm (client, owns form state), TextField, ShippingMethod, CheckoutSummary (+ SummaryLines), DemoBanner
   confirmation/ ConfirmationView (client)
-  home/     Hero, CategoryTiles, FeaturedRow, ValuesStrip, NewsletterSignup (client)
+  home/     Hero, HeroImage (client, flag-aware), CategoryTiles, FeaturedRow, ValuesStrip, NewsletterSignup (client)
   layout/   Header (client), Footer, Wordmark, CartButton (client), MiniCartDrawer (client), SkipLink, ShopShell, PagePlaceholder, nav.ts
   product/  ProductCard, ProductGrid, PlpListing + SortSelect (client), PurchasePanel (exports ProductDetail),
-            ProductGallery, ColourSwatches, SizeSelector, QuantityStepper (optional `label`, `size`), RelatedProducts;
+            ProductGallery, ColourSwatches, SizeSelector, QuantityStepper (optional `label`, `size`), RelatedProducts, DecoyBanner (decoyBanner), ProductStory (short/long, buriedCta);
             svg/ProductImage (renderer), silhouettes.tsx (SILHOUETTES map), color.ts (palette)
+  tracking/ ContentsquareTag, GoogleAnalyticsTag, PageTypeSync (all in app/layout.tsx), RouteTracker (in the (shop) layout)
   ui/       Button (+ ButtonLink, buttonClasses), Field (inputClasses, labelClasses, FieldError), Select, Price, icons
 lib/
   config.ts    # shop constants, friction targets, COUNTRIES, FlagKey, FRICTION defaults, FLAG_META, FLAG_KEYS
@@ -42,16 +48,36 @@ lib/
   format.ts    # formatPrice (Intl EUR), pluralise
   pricing.ts   # pure pricing: roundCents, lineTotal, subtotal, isValidPromo, discount, shipping, awayFromFreeShipping, totals
   order.ts     # Order type, generateOrderNumber (TW- + 6 digits), saveLastOrder, getLastOrderSnapshot/subscribeLastOrder, markPurchaseTracked
+  flags/env.ts        # NEXT_PUBLIC_FRICTION_* -> ENV_FLAGS (literal process.env reads), parseToggle
+  flags/overrides.ts  # ?friction= parser (applyOverrideParam), sessionStorage tw-friction-overrides, external store
+  flags/resolve.ts    # pure resolveFlags (override > global > env > defaults), deriveProfile
+  flags/FlagsProvider.tsx # client provider; useFlag(key), useFlags() -> { flags, profile, ready }; fetches /api/flags (global layer)
+  flags/store/types.ts    # FlagStore, FlagStorePayload {flags, updatedAt, flagHistory}, FlagAction, HISTORY_CAP (30)
+  flags/store/index.ts    # getStore(): FLAG_STORE none|memory|upstash|auto; memory refused when VERCEL is set
+  flags/store/memory.ts   # in-process store (local/e2e)
+  flags/store/upstash.ts  # Upstash REST via fetch, Bearer token, 1500 ms timeout, key tw:friction
+  flags/pin.ts            # isPinConfigured, checkPin (SHA-256 then timingSafeEqual)
+  flags/payload.ts        # sanitizePayload, parseAction, applyAction (one write, history, per-flag updatedAt), describeEffective
+  flags/server.ts         # readPayload, fullState, requirePin (401 delayed ~500 ms, 503 pin_not_configured), NO_STORE headers
+  tracking/uxa.ts     # Contentsquare env + _uxa helpers (trackVirtualPageview, trackDynamicVariable, pushFrictionVariables, frictionState)
+  tracking/ga.ts      # GA env, isUntrackedPath, idempotent ensureGtag, sendGaEvent
+  tracking/track.ts   # track(event, data) -> window.dataLayer (+ GA for 5 ecommerce events), trackViewItem/AddToCart/RemoveFromCart/BeginCheckout/Purchase
+  tracking/pageType.ts # pathToPageType
+  checkout/expressRate.ts # expressShippingError: zone lookup that throws a TypeError for postcodes starting 10
   checkout/validation.ts  # pure validators: FIELD_ORDER, validateEmail/Postcode/CardNumber/Expiry/Cvc, validateField, validateAll
   cart/store.ts         # external cart store: reducer, localStorage tw-cart-v1, subscribe/getSnapshot/dispatch
   cart/CartProvider.tsx # CartProvider (drawer UI state), useCart(), useCartUi()
 public/images/hero.svg  # homepage hero art
 types/global.d.ts  # window._uxa, window.__csLoaded, window.dataLayer
-tests/             # Playwright: fixtures.ts, smoke, shell, catalogue (M2), checkout (M3), screenshots specs
+tests/             # Playwright: fixtures.ts (CS + Google stubs), tracking-helpers.ts, smoke, shell, catalogue, checkout, friction, friction-matrix, flags-unit-m6 (node-level), flags-store, tracking, screenshots specs
+tests-variants/    # variants.spec.ts: build-time tag variants + Strict Mode (npm run test:variants)
 playwright.config.ts
+playwright.variants.config.ts  # VARIANT=disabled|override|invalid|dev
+playwright.m6.config.ts        # M6 panel suite: one build, five servers (ports 3000, 3101-3104), serial
+tests-panel/       # panel.spec.ts, fallback.spec.ts, helpers.ts (npm run test:m6)
 ```
 
-Not built yet (as of M3): `app/robots.ts`, `app/api/*`, `components/{demo-controls,tracking}`, `lib/flags` (M4), `lib/tracking` (M5).
+Nothing in the PLAN structure is outstanding for M6; M7 is polish and handover.
 
 ## Key components
 
@@ -72,8 +98,34 @@ Not built yet (as of M3): `app/robots.ts`, `app/api/*`, `components/{demo-contro
 
 - Catalogue: static data in `lib/products.ts`; PLP/PDP pages are statically generated with `generateStaticParams` and unknown slugs 404.
 - Cart (M2): see below. Last order (M3): see "Order flow" below.
-- Friction flags (M4/M6): one resolver, priority URL override > global store (`/api/flags`) > `NEXT_PUBLIC_FRICTION_*` env > `FRICTION` in `lib/config.ts`. Only the defaults and metadata exist today. See `docs/PLAN.md` section 7.
-- Tracking (M5): Contentsquare tag, virtual page views, dynamic variables, `window.dataLayer`. See `docs/PLAN.md` section 8.
+- Friction flags (M4, global layer M6): see "Flag resolution" below.
+- Tracking (M5): see "Tracking flow" below and `docs/TRACKING.md`.
+
+### Flag resolution (M4, global layer M6)
+
+- `FlagsProvider` (`lib/flags/FlagsProvider.tsx`) is mounted in `app/layout.tsx`, so it covers the shop and `/demo-controls`.
+- Resolver `resolveFlags({ override, global, env, defaults })`: override (`?friction=` / sessionStorage `tw-friction-overrides`) > global (fetched from `/api/flags`, empty if unconfigured or failing) > env (`NEXT_PUBLIC_FRICTION_*`, inlined at build) > `FRICTION` defaults in `lib/config.ts`. With defaults, 8 flags are ON (profile `baseline`), `expressShippingError` OFF.
+- Server render and the first client render use env + defaults only. Overrides come from an external store read with `useSyncExternalStore` (server snapshot = empty), so they apply after hydration without a mismatch; `persistOverrides()` runs on first load and on each pathname change and writes the URL param to sessionStorage.
+- Global layer (M6): `FlagsProvider` fetches `GET /api/flags` once after mount (`cache: no-store`) and again on a route change if the last fetch is older than 30 s. Failures are silent (layer stays empty). `ready` becomes true when overrides are applied and the fetch has finished, or after at most 1.5 s, so `page_view` can arrive up to about 1.5 s after load.
+- Components read flags only via `useFlag(key)`; `useFlags()` adds `profile` (`deriveProfile`) and `ready` (false until mounted). `HeroImage` shows the static `/images/hero.svg` until `ready` and requests `/api/hero-image` only when `slowHero` resolves ON.
+- `RouteTracker` reads `flags`, `profile` and `ready` for the dynamic variables and `page_view`. See `FRICTION_FLAGS.md`.
+
+### Control panel and flag API (M6)
+
+- `/demo-controls` (server page) passes `isPinConfigured()` to the client `ControlPanel`. The PIN lives in sessionStorage `tw-demo-pin` and goes in header `x-demo-pin` to `GET`/`POST /api/demo-controls/flags`.
+- `requirePin` (`lib/flags/server.ts`): 503 `pin_not_configured`, 401 after about 500 ms on a wrong/missing PIN. Then `getStore()`: null -> 503 `store_not_configured`; store error -> 502 `store_error`; bad body -> 400.
+- POST: `parseAction` -> `store.read` -> `applyAction` (computes changes against the currently resolved flags, per-flag `updatedAt`, history newest first capped at 30) -> one `store.write` of the whole payload under the key `tw:friction`. Read-modify-write, no locking.
+- Public `GET /api/flags` returns only `{configured, store, flags, updatedAt}` (no history); no store -> 200 `configured:false`; store error -> 200 `error:true`.
+- The panel shows `effective` values and their `source` (`global|env|default`) from `describeEffective`, plus the derived profile.
+
+### Tracking flow (M5)
+
+- Mounts: `app/layout.tsx` renders `ContentsquareTag`, `GoogleAnalyticsTag` and `PageTypeSync` after `FlagsProvider` (so they also see `/demo-controls`; the tags return null there). `RouteTracker` is in `app/(shop)/layout.tsx` inside `<Suspense fallback={null}>` (uses `useSearchParams`), so it never runs on `/demo-controls` or the 404 page.
+- `RouteTracker`: waits for `useFlags().ready`, then once per pathname + search: (route changes only, and only if `window.__csLoaded`) `_uxa trackPageview`, then ten `trackDynamicVariable` pushes, then dataLayer `page_view`.
+- Events: components call `trackViewItem`/`trackAddToCart`/`trackRemoveFromCart`/`trackBeginCheckout`/`trackPurchase` from `lib/tracking/track.ts`. `track()` calls `ensureGtag()` first, pushes `{ event, ... }` onto the shared `window.dataLayer`, and for the five ecommerce events also `gtag('event', ...)`. `gtag` pushes `Arguments` objects onto the same array.
+- Once-only: `view_item` via a ref guard in `PurchasePanel`; `purchase` + `order_value` via the stored `purchaseTracked` flag re-read inside the effect in `ConfirmationView`.
+- `PageTypeSync` sets `body.dataset.pageType` from `pathToPageType`.
+- Tags are build-time configured (`NEXT_PUBLIC_CS_*`, `NEXT_PUBLIC_GA_*`; ids validated in `uxa.ts`/`ga.ts`).
 
 ### Cart state (M2)
 
@@ -98,9 +150,11 @@ Pricing is never computed in components: everything goes through `lib/pricing.ts
 2. Checkout submit runs `validateAll` (clean mode). If anything is invalid, errors render and focus moves to the first invalid field in `FIELD_ORDER` (visual order).
 3. Valid: `processing` is set (button disabled, `aria-busy`, inputs disabled) and a 1.5 s timer starts.
 4. When it fires, an `Order` (`lib/order.ts`: number, timestamp, email, items, totals, shipping method, promo, currency, `purchaseTracked: false`; no card data) is written to sessionStorage **`tw-last-order`** via `saveLastOrder`, which also notifies subscribers. Then `router.push('/confirmation')` and `cart.clear()` (items and promo). The form keeps rendering while `processing`, so the cleared cart does not flash the empty state.
-5. `/confirmation` reads the snapshot (cached per raw string). Reload shows the same order; a new tab session has none. `markPurchaseTracked` is ready for the M5 fire-once `purchase` event.
+5. `/confirmation` reads the snapshot (cached per raw string). Reload shows the same order; a new tab session has none. `ConfirmationView` uses `markPurchaseTracked` to fire `purchase` and `order_value` once (see Tracking flow).
 
 ## Testing
 
-- `npm run test:e2e`: the Playwright `webServer` runs `npm run build && npm run start -p 3000` with `FLAG_STORE=memory` and `DEMO_CONTROLS_PIN=246810`. `tests/fixtures.ts` stubs `t.contentsquare.net` and records the requests.
+- `npm run test:e2e`: the Playwright `webServer` runs `npm run build && npm run start -p 3000` with `FLAG_STORE=memory`, `DEMO_CONTROLS_PIN=246810` and all nine `NEXT_PUBLIC_FRICTION_*` set to `off` (specs assert the clean behaviour; friction specs use `?friction=<flag>:on`). Friction specs: `tests/friction.spec.ts`, `tests/friction-matrix.spec.ts` (includes 4 node-level unit tests of the resolver/parser). `tests/fixtures.ts` stubs `t.contentsquare.net` and the Google hosts (`csRequests`, `gaRequests`); no real analytics hit is ever sent. `tests/tracking.spec.ts` + `tests/tracking-helpers.ts` cover tracking.
+- `npm run test:m6` (`playwright.m6.config.ts`, `tests-panel/`): builds once, then starts five servers serially (3000 memory store + PIN 246810; 3101 `FLAG_STORE=none`; 3102 memory with empty PIN; 3103 memory + `VERCEL=1` to prove the refusal; 3104 `FLAG_STORE=upstash` with a fake unreachable URL, GET only). It sets `FLAG_STORE` explicitly and blanks all `KV_`/`UPSTASH_` vars so `.env.local` credentials and the real store are never used. `tests/flags-unit-m6.spec.ts` (node-level) and `tests/flags-store.spec.ts` run in the main suite.
+- `npm run test:variants` (`playwright.variants.config.ts`, `tests-variants/`): runs four builds in sequence (`disabled`, `override`, `invalid`, `dev` = `next dev` for Strict Mode), each on port 3000.
 - The build rewrites `.next/`. Do not run a second `next start` from this folder while tests run.

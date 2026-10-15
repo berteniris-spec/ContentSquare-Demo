@@ -1,6 +1,6 @@
 # Features
 
-Status: reflects the code after M3. Each section is filled in when its milestone ships. Spec: `docs/PLAN.md` sections 5 and 9. All behaviour below is the clean (no-friction) behaviour; friction comes in M4.
+Status: reflects the code after M4. Each section is filled in when its milestone ships. Spec: `docs/PLAN.md` sections 5 and 9. Sections describe the clean behaviour (flags OFF); the friction variants are in "Friction behaviours (M4)" below and in `FRICTION_FLAGS.md`. Note: with code defaults 8 flags are ON, so a fresh visit shows friction.
 
 ## Shell (M1)
 
@@ -43,7 +43,7 @@ Page: `app/(shop)/product/[slug]/page.tsx` (static, unknown slug -> 404). Main c
 - **Sizes** (`SizeSelector.tsx`, sized products only): radiogroup, nothing preselected.
 - **Quantity** (`QuantityStepper.tsx`): 1..10, minus disabled at 1, plus disabled at 10.
 - **Add to cart** (`add-to-cart`, id `add-to-cart`): for a sized product with no size, shows "Please select a size" (`role=alert`), moves focus to the first size and adds nothing; selecting a size clears the error. On success it adds or merges the line and opens the mini-cart drawer with "Added to cart".
-- **Description and feature bullets**, then the long story `pdp-story` below the CTA (clean layout; `buriedCta` moves it in M4).
+- **Description and feature bullets**, then the story `pdp-story` (`ProductStory.tsx`) below the CTA (clean layout; `buriedCta` moves a long version above it on the Trailhead 28).
 - **Related** (`RelatedProducts.tsx`): "You may also like", 4 products from `getRelated` (same category, excluding current).
 
 ## Cart store (M2)
@@ -93,13 +93,13 @@ Code: `components/cart/PromoCode.tsx`, rules in `lib/pricing.ts`, state in the c
 - `DEMO10` in any case and with surrounding spaces applies: the summary shows the discount row and the panel shows one line "✓ DEMO10 applied: 10% off your order" next to "Remove code" (`promo-code-remove`). A `sr-only` live region (`promo-code-message`) announces it.
 - Anything else (e.g. `DEMO11`, `DEMO 10`, empty) shows "This code isn't valid" in `promo-code-message` (`aria-live="polite"`, icon, `aria-invalid` on the input); no discount.
 - The code is stored with the cart (localStorage `tw-cart-v1`), survives reload and carries into checkout. It is cleared with the cart after an order.
-- The `prominent` variant (always-open accent block above the rows) is the M4 `promoField` hook; not used yet.
+- The `prominent` variant (always-open accent block above the rows) is used when `promoField` is ON (see Friction behaviours).
 
 ## Shipping rules (M3)
 
 - Standard: free when subtotal - discount >= €75, else €6.95. Express: always €12.95. Shown on the cart (standard only), on the checkout radio cards and in every summary.
 - Checkout summary and "Pay €X" update live when the method changes. The confirmation shows the method used.
-- `SummaryRows` `shippingDisplay="deferred"` ("Calculated at checkout") is the M4 `shippingSurprise` hook; not used yet.
+- `SummaryRows` `shippingDisplay="deferred"` ("Calculated at checkout") is used on the cart when `shippingSurprise` is ON.
 
 ## Checkout `/checkout` (M3)
 
@@ -133,8 +133,44 @@ Page: `app/(shop)/confirmation/page.tsx` renders `components/confirmation/Confir
 - Reload shows the same order (sessionStorage, per tab session). The order carries `purchaseTracked: false`, ready for the M5 fire-once `purchase` event (`markPurchaseTracked`).
 - No order (fresh session): `confirmation-no-order` with H1 "No recent order" and "Shop all products" -> `/category/all`.
 
+## Friction behaviours (M4)
+
+Flags are resolved by `lib/flags/` (override > global > env > defaults) and read with `useFlag(key)`; details, triggers and Contentsquare angle in `FRICTION_FLAGS.md`. Wiring:
+
+| Flag | Code |
+|---|---|
+| `promoField`, `shippingSurprise` | `components/cart/CartView.tsx` passes `promoVariant` / `shippingDisplay` to `OrderSummary` |
+| `decoyBanner` | `components/product/DecoyBanner.tsx`, rendered by `PlpListing.tsx` above the sort row; a non-interactive `div` (`plp-decoy-banner`) |
+| `buriedCta` | `PurchasePanel.tsx` + `ProductStory.tsx`: on `trailhead-28-backpack` a long specs and care block precedes colour, quantity and Add to cart |
+| `deadSwatch` | `PurchasePanel.tsx`: Moss on `field-tote` ignores selection, no disabled state |
+| `silentSize` | `PurchasePanel.tsx`: on `storm-shell-jacket`, Add to cart with no size returns silently (no message, no focus) |
+| `slowHero` | `components/home/HeroImage.tsx` (client; static hero.svg until flags are ready, swaps to the slow image only if ON) -> `/api/hero-image` (~3.0 s, ~1.73 MB SVG) when ON, `/images/hero.svg` when OFF |
+| `postcodeValidation` | `CheckoutForm.tsx` -> `validatePostcode(..., { strict })`: only `^\d{4}[A-Z]{2}$` or `^\d{4,5}$`, message "Invalid input." |
+| `expressShippingError` | `CheckoutForm.tsx` `checkExpressZone` -> `lib/checkout/expressRate.ts` throws a real `TypeError` (reading `rate`) for postcodes starting `10` when Express is selected (on postcode change, method change and submit); Standard recovers |
+
+M4 also landed the deferred nice-to-haves: size-chip error border and sticky PDP gallery column (M2 CR 5-6), and `xs:flex-1` / `whitespace-nowrap` fixes in `NewsletterSignup.tsx` and `PromoCode.tsx` (M3 CR 8-9).
+
+## Tracking (M5)
+
+Details and payloads: `TRACKING.md`. Code: `lib/tracking/*`, `components/tracking/*`.
+
+- **Contentsquare tag** and **GA4** (`G-4PLJ26X0Y9`) load on shop routes and 404, never on `/demo-controls`; both switchable by `NEXT_PUBLIC_*_ENABLED=false`.
+- **Virtual page views**: `_uxa trackPageview` on client route changes only (after the tag loaded); initial page view is the tag's own.
+- **Dynamic variables**: ten `friction_*` on every page view; `order_value` once on confirmation.
+- **dataLayer events**: `page_view`, `view_item` (PDP mount), `add_to_cart` (not when size missing/silentSize blocks), `remove_from_cart` (Remove only), `begin_checkout` (checkout mount, non-empty cart), `purchase` (once per order). Five ecommerce events are also sent to GA4; no manual GA `page_view`.
+- **`data-page-type`** on `<body>` for every route (`PageTypeSync`).
+- No PII (email, address) or card data in any push.
+
+## Live toggles and control panel (M6)
+
+Details: `FRICTION_FLAGS.md` (usage), `ARCHITECTURE.md` (code), `DEPLOYMENT.md` (store).
+
+- **`/demo-controls`** (`app/demo-controls/page.tsx`, `components/demo-controls/*`): PIN form (`pin-input`, `pin-submit`, `pin-error`), or `pin-disabled` when `DEMO_CONTROLS_PIN` is unset. After unlock: store status, profile with phase hint (`friction-profile`, `friction-phase`), nine switches (`flag-row-<flag>`, `flag-state-<flag>`, `flag-updated-<flag>`), master buttons `btn-all-on` / `btn-all-off` / `btn-only-fix-errors`, `btn-refresh`, `btn-lock`, `panel-error`, and history (`flag-history-entry`, last 20 shown). noindex, no shop chrome, no tracking tags.
+- **Flag API**: public `GET /api/flags` (`app/api/flags/route.ts`); PIN-protected `GET`/`POST /api/demo-controls/flags`. Statuses and payloads in `ARCHITECTURE.md`.
+- **Store**: `lib/flags/store/*` (Upstash REST in production, memory locally, none otherwise). Without a store the shop falls back to env and defaults.
+- **Visitor side**: `FlagsProvider` fetches `/api/flags` after mount and on route changes older than 30 s.
+- **`app/robots.ts`**: allows `/`, disallows `/demo-controls` and `/api/`.
+
 ## Planned
 
-- Friction behaviours: planned (milestone 4), see `FRICTION_FLAGS.md`. Hooks already in place: `promoVariant` / `shippingDisplay` props on `OrderSummary`, `strictPostcode` in `validatePostcode`, `onShippingChange` in `CheckoutForm`.
-- Tracking events (incl. `add_to_cart`, `purchase` fired once per order): planned (milestone 5), see `TRACKING.md`
-- Control panel `/demo-controls`: planned (milestone 6)
+- M7 (done): hardening and polish; final DEMO_SCRIPT and TRAFFIC_GUIDE. Open low-severity items: `PROJECT_STATUS.md`.

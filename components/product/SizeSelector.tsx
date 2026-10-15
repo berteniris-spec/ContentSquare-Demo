@@ -52,7 +52,9 @@ export const SizeSelector = forwardRef<
               onClick={() => onChange(s)}
               onKeyDown={(e) => onKeyDown(e, i)}
               className={`h-11 min-w-12 rounded-md border px-3 text-sm font-medium transition-colors duration-150 ${
-                checked ? "border-ink bg-ink text-canvas shadow-sm" : "border-line-strong bg-surface text-ink hover:border-ink"
+                checked
+                  ? "border-ink bg-ink text-canvas shadow-sm"
+                  : `${error ? "border-error" : "border-line-strong"} bg-surface text-ink hover:border-ink`
               }`}
             >
               {s}
