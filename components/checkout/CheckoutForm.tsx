@@ -43,6 +43,14 @@ const EMPTY: CheckoutValues = {
 
 type Errors = Partial<Record<CheckoutField, string>>;
 
+// Typed digits become MM/YY; the slash is added after the second digit (not when deleting).
+function formatExpiry(raw: string, previous: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  if (digits.length > 2) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  if (digits.length === 2 && raw.length > previous.length) return `${digits}/`;
+  return digits;
+}
+
 export function CheckoutForm() {
   const cart = useCart();
   const router = useRouter();
@@ -87,7 +95,8 @@ export function CheckoutForm() {
     if (expressErrorFlag && selected === "express") expressRateFor(postcode);
   }
 
-  function setValue(field: CheckoutField, value: string) {
+  function setValue(field: CheckoutField, rawValue: string) {
+    const value = field === "cardExpiry" ? formatExpiry(rawValue, values.cardExpiry) : rawValue;
     const next = { ...values, [field]: value };
     setValues(next);
     // Errors appear on blur/submit, not while typing; but clear one as soon as it is fixed.

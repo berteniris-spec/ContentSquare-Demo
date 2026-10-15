@@ -323,6 +323,22 @@ test.describe("checkout validation (clean)", () => {
     }
   });
 
+  test("expiry auto-inserts the slash after two digits", async ({ page }) => {
+    await seed(page, [{ slug: "field-tote" }]);
+    await page.goto("/checkout");
+    const el = page.getByTestId("checkout-cardExpiry");
+    await el.pressSequentially("1230");
+    await expect(el).toHaveValue("12/30");
+    await el.fill("");
+    await el.pressSequentially("12/30");
+    await expect(el).toHaveValue("12/30");
+    await el.press("Backspace");
+    await el.press("Backspace");
+    await expect(el).toHaveValue("12");
+    await el.press("Backspace");
+    await expect(el).toHaveValue("1");
+  });
+
   test("expiry MM/YY, valid month, not in the past", async ({ page }) => {
     const now = new Date();
     const yy = (y: number) => String(y % 100).padStart(2, "0");
@@ -331,7 +347,7 @@ test.describe("checkout validation (clean)", () => {
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${mm(prev.getMonth() + 1)}/${yy(prev.getFullYear())}`;
     for (const [bad, msg] of [
-      ["1230", /MM\/YY/],
+      ["12", /MM\/YY/],
       ["13/30", /month/i],
       ["00/30", /month/i],
       [lastMonth, /expired/i],
