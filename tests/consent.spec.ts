@@ -71,6 +71,61 @@ test.describe("cookie consent", () => {
     expect(gaRequests).toHaveLength(0);
   });
 
+  test.describe("?consent= URL param", () => {
+    test("accept hides the banner, loads tags, persists, strips the param but keeps others", async ({
+      page,
+      csRequests,
+      gaRequests,
+    }) => {
+      await page.goto("/?consent=accept&friction=all:off");
+      await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
+      await expect.poll(() => tagCount(page)).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => csRequests.length).toBeGreaterThan(0);
+      await expect.poll(() => gaRequests.length).toBeGreaterThan(0);
+      expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBe("accepted");
+      await expect.poll(() => new URL(page.url()).searchParams.has("consent")).toBe(false);
+      expect(new URL(page.url()).searchParams.get("friction")).toBe("all:off");
+      await page.reload();
+      await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
+      await expect.poll(() => tagCount(page)).toBeGreaterThanOrEqual(2);
+    });
+
+    test("decline keeps tags off", async ({ page, csRequests, gaRequests }) => {
+      await page.goto("/?consent=decline");
+      await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
+      await page.waitForTimeout(800);
+      expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBe("declined");
+      expect(await tagCount(page)).toBe(0);
+      expect(csRequests).toHaveLength(0);
+      expect(gaRequests).toHaveLength(0);
+      expect(new URL(page.url()).searchParams.has("consent")).toBe(false);
+    });
+
+    test("reset after accept brings the banner back", async ({ page }) => {
+      await page.goto("/?consent=accept");
+      await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
+      await page.goto("/?consent=reset");
+      await expect(page.getByTestId("cookie-banner")).toBeVisible();
+      expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBeNull();
+      expect(new URL(page.url()).searchParams.has("consent")).toBe(false);
+    });
+
+    test("invalid value is ignored", async ({ page }) => {
+      await page.goto("/?consent=bogus");
+      await expect(page.getByTestId("cookie-banner")).toBeVisible();
+      expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBeNull();
+    });
+
+    test("no effect on /demo-controls", async ({ page, csRequests, gaRequests }) => {
+      await page.goto("/demo-controls?consent=accept");
+      await page.waitForTimeout(600);
+      expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBeNull();
+      expect(await tagCount(page)).toBe(0);
+      expect(csRequests).toHaveLength(0);
+      expect(gaRequests).toHaveLength(0);
+    });
+  });
+
   test("keyboard focus never lands under the banner (PDP, 390px)", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const { PRODUCTS } = await import("../lib/products");

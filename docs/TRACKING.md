@@ -13,7 +13,9 @@ Nothing is loaded, pushed or recorded until the visitor clicks **Accept** in the
 - `RouteTracker` waits for `consent === "accepted"` as well as flags `ready`. Accepting mid-visit emits the `page_view` (and `friction_*` variables) for the current page; the Contentsquare tag then sends its own first page view.
 - **Pages viewed before Accept are not recorded** (not backfilled). Decline = never tracked. There is no UI to withdraw or change the choice yet (clear `tw-consent` in localStorage to see the banner again).
 - No banner and no tags on `/demo-controls` (`isUntrackedPath`).
-- Tests: `tests/consent.spec.ts` (banner, Accept, Decline, no requests before consent, `/demo-controls`, touch targets, focus). All Playwright configs seed `tw-consent=accepted` through `tests/consent-state.ts`, so other suites behave as before.
+- **`?consent=accept|decline|reset` URL param (demo helper).** `applyConsentParam()` in `lib/consent.ts`, called once on mount from `components/layout/CookieBanner.tsx`. `accept` runs `setConsent("accepted")`, `decline` runs `setConsent("declined")`, `reset` clears `tw-consent` (banner returns). Any other value is ignored. After applying, the `consent` param is removed from the URL with `history.replaceState`; other params (e.g. `?friction=`) are kept. No effect on `/demo-controls`. Because the tags load on the consent change, a link such as `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off` records the session from its first page.
+- **Demo-site statement:** Tidewild is a demo site. The owner wants every session recorded as if it were a real customer, so demo links skip the banner on purpose and test orders (test data only, no real payment) are intentionally recorded as real data. Anyone holding a `?consent=accept` link can skip the banner; accepted for a demo (DECISIONS 2026-10-15).
+- Tests: `tests/consent.spec.ts` (banner, Accept, Decline, no requests before consent, `/demo-controls`, touch targets, focus). `?consent=` cases are in `tests/consent.spec.ts`. All Playwright configs seed `tw-consent=accepted` through `tests/consent-state.ts`, so other suites behave as before.
 - Security: the CSP in `next.config.ts` allows the GA and Contentsquare hosts (see `docs/DEPLOYMENT.md`).
 
 ## Code map
@@ -135,4 +137,4 @@ GA forwarding example: `['event', 'add_to_cart', { currency: 'EUR', value: 158, 
 
 0. On the live site, with DevTools open: no CSP violations in the console; after Accept the GA and Contentsquare scripts load (Network) and `_uxa`/`dataLayer` fill. Local tests use stubs, so real tags under the CSP are unverified.
 1. GA4 Realtime / DebugView: hard loads and SPA navigations each show one page view; a test purchase appears once with the right `transaction_id` and value.
-2. Contentsquare: after allow-listing `tidewild-demo.vercel.app`, confirm the tag consumes `_uxa` (virtual page views as separate pages, `friction_*` and `order_value` visible as dynamic variables). Set up segments on `friction_*`.
+2. Contentsquare (no domain allow-list is needed; the tag loads after Accept): confirm the tag consumes `_uxa` (virtual page views as separate pages, `friction_*` and `order_value` visible as dynamic variables). Set up segments on `friction_*`.

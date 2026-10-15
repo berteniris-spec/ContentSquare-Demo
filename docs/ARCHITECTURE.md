@@ -121,6 +121,7 @@ Nothing in the PLAN structure is outstanding for M6; M7 is polish and handover.
 ### Consent and security headers
 
 - `lib/consent.ts` holds consent in localStorage `tw-consent` (`accepted|declined|unknown`) and exposes `useConsent()` through `useSyncExternalStore` (`ready` false until hydrated, so no banner flash). `CookieBanner` (`components/layout/CookieBanner.tsx`, mounted in `app/layout.tsx`) writes it with `setConsent()`; hidden on `/demo-controls`.
+- `applyConsentParam()` (`lib/consent.ts`) reads `?consent=accept|decline|reset` from `window.location`, calls `setConsent`/`clearConsent`, then strips only that param via `history.replaceState`. `CookieBanner` calls it once on mount; skipped on `/demo-controls`; invalid values are ignored.
 - Gate points: `ContentsquareTag`, `GoogleAnalyticsTag` (render null), `track()`, `ensureGtag()`/`sendGaEvent`, `uxaPush` (return early via `hasConsent()`), and `RouteTracker` (effect waits for `accepted`).
 - `next.config.ts` `headers()` applies `SECURITY_HEADERS` (CSP, nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS) to every route. The CSP is enforced and loose; `'unsafe-eval'` only in dev. New third-party hosts must be added there.
 - Tests: `tests/consent.spec.ts`, `tests/consent-state.ts` (storageState seed used by all four Playwright configs; the M6 config seeds five ports), `tests/headers.spec.ts`.

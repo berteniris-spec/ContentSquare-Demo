@@ -8,7 +8,7 @@ The optional `scripts/traffic/` Playwright persona script was **not built**. All
 
 | Check | How |
 |---|---|
-| Domain allow-listed | In Contentsquare project settings, `tidewild-demo.vercel.app` is allowed (`DEPLOYMENT.md`). Without it no data arrives. |
+| Contentsquare project settings | No domain allow-list is needed. IP blocking is the only related setting and is empty, so your own sessions record. The tag loads only after Accept (`DEPLOYMENT.md`). |
 | Tag request visible | Open the site, DevTools Network: `t.contentsquare.net/uxa/506730812ef03.js` loads (200); `window._uxa` exists. |
 | Production build is current | The deployed build includes M4-M7 (`/demo-controls` shows a PIN form, `/api/flags` returns JSON). |
 | Flag store works | Panel store status says Upstash, not "not configured". |
@@ -18,9 +18,11 @@ The optional `scripts/traffic/` Playwright persona script was **not built**. All
 | Dynamic variables | In a replay or session, check `friction_profile` and `friction_*` appear (needs Contentsquare to have the variables enabled; verify after the first sessions). |
 | No tags on the panel | `/demo-controls` loads neither Contentsquare nor GA4 by design; panel use never creates sessions. |
 
+**Testing a purchase:** complete checkout in a clean private window after clicking Accept. GA4 Realtime shows `purchase` (`transaction_id`, `value`, EUR) within about a minute; Contentsquare shows `/confirmation` and the dynamic variable `order_value` (must be set up and visible in the project). Test orders appear in real data.
+
 ## 2. Internal traffic and Google Analytics
 
-- Your own browsing is real traffic to Contentsquare and to GA4 (property `G-4PLJ26X0Y9`). Contentsquare: add your office/home IP as an exclusion in the project settings if you do not want your own sessions in the data, or mark your demo sessions in the session log (section 8) and segment on them; for a demo, most people keep them.
+- Your own browsing is real traffic to Contentsquare and to GA4 (property `G-4PLJ26X0Y9`). Contentsquare: add your office/home IP under IP blocking in the project settings (currently empty, so your sessions DO record) if you do not want your own sessions in the data, or mark your demo sessions in the session log (section 8) and segment on them; for a demo, most people keep them.
 - GA4: create an internal-traffic rule (Admin > Data streams > Configure tag settings > Define internal traffic) and a data filter if you want to hide demo or rehearsal visits. Nothing in the app sets `traffic_type`.
 - For local runs put `NEXT_PUBLIC_GA_ENABLED=false` in `.env.local` so `localhost` does not hit the real property.
 - Never generate load on the panel API; it is the live switch for all visitors.
@@ -28,6 +30,8 @@ The optional `scripts/traffic/` Playwright persona script was **not built**. All
 ## 3. Cookies and consent (banner)
 
 - The site shows a **cookie banner** (Accept / Decline). **Every visitor and every generated session must click Accept first, otherwise nothing is recorded**: Contentsquare and GA4 do not load, and Decline keeps them off for good. Pages viewed before clicking Accept are not recorded (the session starts at the page where you accept), so click Accept on the landing page.
+- **Use accept links.** Start every session from a link that sets consent, so nothing is lost before the click: `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off` (`?consent=accept|decline|reset`; the param is applied once and stripped from the URL, other params such as `?friction=` are kept; ignored on `/demo-controls`). Use `?consent=reset` to see the banner again. Anyone with such a link skips the banner; acceptable for a demo.
+- **This is a demo site:** the owner wants every session recorded as if from real customers, and test orders are intentionally recorded as real data (test data only, no real payment).
 - The choice is stored in localStorage `tw-consent`. A new incognito window or cleared storage asks again; that is the normal way to simulate a new person (section 4). There is no way yet to withdraw the choice in the UI.
 - GA4 cookies (`_ga`, `_ga_<id>`) are now set only after Accept. The banner is not shown on `/demo-controls`.
 - In Contentsquare **privacy settings**, review the consent mode against this behaviour (the tag only loads after Accept, so collecting without the project's own consent step is the simplest setting). Also review masking: the checkout fields (email, name, address, card number, expiry, CVC) should be masked or excluded in the privacy settings, even though the checkout takes test data only and no real payment is processed.

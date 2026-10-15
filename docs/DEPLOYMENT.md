@@ -95,12 +95,18 @@ Prerequisites locally (last run, all green): `npm run lint` (0 warnings), `npx t
 3. Push to the GitHub-linked branch (auto-deploys to production), or run `vercel deploy --prod --yes`.
 4. In Vercel, confirm Production has `DEMO_CONTROLS_PIN`, `NEXT_PUBLIC_CS_TAG_ID`, `NEXT_PUBLIC_CS_ENABLED`, the Upstash `KV_*` vars, and **no** `FLAG_STORE=memory`.
 5. Decide the baseline: with no `NEXT_PUBLIC_FRICTION_*` set (the default), a bare deployment shows **8 flags ON** (profile `baseline`, `expressShippingError` OFF) until the panel sets values. The clean state exists only when asked for explicitly (`?friction=all:off` or the panel's **All friction OFF**). Changing env defaults needs a redeploy; panel changes do not.
-6. Allow-list the domain in Contentsquare (next section).
+6. Check the Contentsquare project settings (next section; no domain allow-list is needed).
 7. Run the checklist "After the production deploy" below.
 
-## Contentsquare domain allow-listing (reminder)
+## Contentsquare project settings (reminder)
 
-In the Contentsquare project settings, allow-list the production domain **`tidewild-demo.vercel.app`** (and any custom domain or preview domain you demo from). Without it the tag will not collect data from production. Also check the project's privacy settings; the site has a consent banner and the tag only loads after Accept (see `TRAFFIC_GUIDE.md`).
+- **No domain allow-list is needed.** The owner's Contentsquare project has none; its only related setting is **IP blocking**, currently with no entries, so your own sessions DO record. If you want your own traffic excluded, add your IP there.
+- The site has a consent banner: the tag only loads after the visitor clicks **Accept** or opens a link with `?consent=accept` (e.g. `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off`; see `TRAFFIC_GUIDE.md`). This is a demo site: all sessions and test orders are intentionally recorded as real data. `?consent=` needs no env var and no code deploy changes beyond the build.
+- Also check the project's privacy settings.
+
+### Testing a purchase
+
+Complete checkout in a clean private window after clicking Accept. GA4 Realtime shows `purchase` (`transaction_id`, `value`, currency EUR) within about a minute. Contentsquare shows the `/confirmation` page and the dynamic variable `order_value` (the variable must be set up and visible in the project). Test orders appear in real data (GA4 and Contentsquare), so note them in the session log or filter them out.
 
 ## Smoke check
 
@@ -125,13 +131,13 @@ Flag store (M6):
 
 Security headers and consent (new, not yet verified live):
 1. **CSP**: open the live site with DevTools, click Accept, and check the console for "Content Security Policy" / "violates the following directive" errors. The CSP (`next.config.ts`) is enforced and deliberately loose; if the real GA or Contentsquare tag (or its collectors) is blocked, add the host to `script-src` / `connect-src`.
-2. **Tags after Accept**: before Accept, Network shows no `googletagmanager.com` or `contentsquare` requests; after Accept both load and `window._uxa` / `dataLayer` fill. After Decline, nothing loads.
+2. **Tags after Accept** (also via `/?consent=accept`: the param disappears from the URL, `tw-consent=accepted` is set, tags load): before Accept, Network shows no `googletagmanager.com` or `contentsquare` requests; after Accept both load and `window._uxa` / `dataLayer` fill. After Decline, nothing loads.
 3. **Headers**: `curl -sI https://tidewild-demo.vercel.app/` shows `x-content-type-options`, `referrer-policy`, `x-frame-options: DENY`, `permissions-policy`, `strict-transport-security`, `content-security-policy`; `/api/flags` still has its own `Cache-Control`.
 4. `/demo-controls` has no banner and no tags.
 
 Tracking (M5):
 1. **GA4** (click Accept first): open Realtime and DebugView for property `G-4PLJ26X0Y9`. Hard loads and SPA navigations should each show one page view (no doubles); a test purchase should appear once. `/demo-controls` sends nothing by design.
-2. **Contentsquare**: after allow-listing `tidewild-demo.vercel.app`, confirm the tag loads (`t.contentsquare.net/uxa/506730812ef03.js`), consumes `_uxa` (virtual page views on route changes, `friction_*` and `order_value` dynamic variables).
+2. **Contentsquare** (no domain allow-list needed): confirm the tag loads (`t.contentsquare.net/uxa/506730812ef03.js`), consumes `_uxa` (virtual page views on route changes, `friction_*` and `order_value` dynamic variables).
 3. `?friction=` overrides work on the live URL.
 4. **Panel API not cached**: `curl -i -H "x-demo-pin: <PIN>" https://tidewild-demo.vercel.app/api/demo-controls/flags` must not be served from the CDN (no `x-vercel-cache: HIT`), and a toggle then Refresh in the panel shows the new value immediately.
 5. **Hero weight**: `/api/hero-image` returns about 1.73 MB after about 3 s on Vercel with `slowHero` ON (`Cache-Control: no-store`), and is not requested at all with `?friction=slowHero:off`. Check it stays within the serverless time limit.

@@ -9,8 +9,11 @@ Newest first. Each entry: decision, why, date.
    Consequences: pre-consent pages are not recorded; Decline = never tracked; no withdraw/change UI yet (accepted for now). Every Playwright config seeds `tw-consent=accepted` (`tests/consent-state.ts`) so existing suites are unchanged; `tests/consent.spec.ts` covers the banner.
 2. **Security headers in `next.config.ts`:** nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, Permissions-Policy (camera, microphone, geolocation, payment off), HSTS (2 years, includeSubDomains), and an **enforced but deliberately loose CSP** (`'unsafe-inline'` scripts/styles, `connect-src 'self' https: wss:`, GA and Contentsquare hosts allowed).
    Why: a strict CSP risks silently blocking the Contentsquare tag and its collectors, which would break the demo. Real GA/Contentsquare under the CSP is still to verify on the live site (`docs/DEPLOYMENT.md`). Covered locally by `tests/headers.spec.ts`.
-3. **Checkout expiry auto-slash:** `formatExpiry` in `CheckoutForm.tsx` inserts `/` after two typed digits (not when deleting). Purely a usability fix, not a friction flag.
-4. **npm audit:** 0 production vulnerabilities; 5 high, dev-only (`braces` via `eslint-config-next`). The fix would be a breaking downgrade, so deferred.
+3. **`?consent=accept|decline|reset` URL param (2026-10-15).** `applyConsentParam()` in `lib/consent.ts`, applied once on mount in `CookieBanner`; invalid values ignored; param stripped, other params kept; no effect on `/demo-controls`.
+   Why: the site is a demo for a Contentsquare hiring manager and the owner wants every session recorded as if from real customers, so demo links are `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off`. This is a demo site; test orders are intentionally recorded as real data.
+   Consequences: anyone with the link can skip the banner (acceptable for a demo). The banner still protects ordinary visitors. No PIN involved.
+4. **Checkout expiry auto-slash:** `formatExpiry` in `CheckoutForm.tsx` inserts `/` after two typed digits (not when deleting). Purely a usability fix, not a friction flag.
+5. **npm audit:** 0 production vulnerabilities; 5 high, dev-only (`braces` via `eslint-config-next`). The fix would be a breaking downgrade, so deferred.
 
 ## 2026-10-14 - M5 Tracking (built)
 
@@ -132,3 +135,5 @@ The orchestrating session started in the parent folder, so project agents in `.c
 3. **Focus-drop item fixed (post-M7):** panel master buttons use `aria-disabled` and ignore clicks while busy instead of `disabled`; focus is kept (accepted trade-off: they stay focusable and are announced as unavailable). The 8 expected-failure tests were un-marked.
 4. **Bare deployment shows the baseline (8 flags ON).** Why: code defaults are the Phase A state; the clean state is explicit (`?friction=all:off` or All friction OFF).
 5. **GA cookies without a banner (superseded 2026-10-15 by the consent banner)** (Q-GA4/Q5) documented in `TRAFFIC_GUIDE.md` section 3, along with GA4 internal-traffic filtering.
+
+- 2026-10-15: Owner confirmed the Contentsquare project has no domain allow-list (only IP blocking, empty). Earlier "allow-list tidewild-demo.vercel.app" instructions were wrong and are corrected in the current docs; BRIEF, PLAN and TEST_REPORT keep the original wording as history.

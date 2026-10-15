@@ -165,6 +165,7 @@ Details and payloads: `TRACKING.md`. Code: `lib/tracking/*`, `components/trackin
 ## Cookie consent and security headers
 
 - **Cookie banner** (`components/layout/CookieBanner.tsx`, `cookie-banner`, `cookie-accept`, `cookie-decline`): fixed bottom region "Cookie consent", Accept / Decline (44 px targets), does not take focus, pads the page so it never covers content. Choice persists in localStorage `tw-consent` (`lib/consent.ts`). Not shown on `/demo-controls`. No withdraw/change UI yet; pre-consent pages are not recorded. Details: `TRACKING.md`.
+- **Consent URL param**: `?consent=accept|decline|reset` sets or clears `tw-consent` once on mount (`applyConsentParam` in `lib/consent.ts`, called from `CookieBanner`), then is removed from the URL; `?friction=` etc. are kept; ignored on `/demo-controls`; invalid values ignored. Demo link: `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off`. Demo site: test orders are intentionally recorded as real data.
 - **Security headers** (`next.config.ts`): nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS and a deliberately loose enforced CSP. Live verification with the real tags pending (`DEPLOYMENT.md`).
 
 ## Live toggles and control panel (M6)

@@ -28,7 +28,7 @@ First Playwright run: `npx playwright install chromium`. Run the suites one at a
 
 ## Consent
 
-GA4 and Contentsquare load only after the visitor clicks Accept in the cookie banner (`lib/consent.ts`); see `docs/TRACKING.md`.
+GA4 and Contentsquare load only after the visitor clicks Accept in the cookie banner (`lib/consent.ts`); `?consent=accept|decline|reset` sets the choice from a link (demo helper, e.g. `/?consent=accept&friction=all:off`). This is a demo site: sessions and test orders are intentionally recorded as real data. See `docs/TRACKING.md`.
 
 ## Friction flags
 
@@ -36,4 +36,4 @@ Nine flags; eight are ON by default (baseline), `expressShippingError` is OFF. O
 
 ## Docs (start with `docs/PROJECT_STATUS.md`)
 
-`PROJECT_STATUS` (state, next steps, owner manual steps) | `DEMO_SCRIPT` (interview run order) | `TRAFFIC_GUIDE` (generating sessions, privacy) | `DEPLOYMENT` (Vercel, env, Contentsquare allow-listing) | `FRICTION_FLAGS` | `TRACKING` | `FEATURES` | `ARCHITECTURE` | `DECISIONS` | `PLAN` | `DESIGN_TOKENS` | `DESIGN_REVIEW` | `TEST_REPORT` | `BRIEF` (original brief).
+`PROJECT_STATUS` (state, next steps, owner manual steps) | `DEMO_SCRIPT` (interview run order) | `TRAFFIC_GUIDE` (generating sessions, privacy) | `DEPLOYMENT` (Vercel, env, Contentsquare project settings) | `FRICTION_FLAGS` | `TRACKING` | `FEATURES` | `ARCHITECTURE` | `DECISIONS` | `PLAN` | `DESIGN_TOKENS` | `DESIGN_REVIEW` | `TEST_REPORT` | `BRIEF` (original brief).

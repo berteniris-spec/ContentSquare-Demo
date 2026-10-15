@@ -6,11 +6,12 @@ Run order for a live demo of Tidewild, built only from what is implemented. Back
 
 ## Before you start (10 min)
 
-1. Production runs the M4-M7 build and Contentsquare has `tidewild-demo.vercel.app` allow-listed (`DEPLOYMENT.md`).
+1. Production runs the M4-M7 build and the Contentsquare project needs no domain allow-list (IP blocking is empty; `DEPLOYMENT.md`).
 2. Open `<origin>/demo-controls`, enter the PIN, check: store status says Upstash, profile says Phase A (`baseline`). If `expressShippingError` is ON, switch it OFF. Keep this tab in its own window; no tags load there.
 3. Sessions already exist from earlier traffic (`TRAFFIC_GUIDE.md`): phase A baseline data, then phase B (error ON) data, then phase C (fixed) data, with switch times noted. Contentsquare needs time to process; do not rely on generating data during the demo.
 4. Bookmark the Contentsquare views you will open (funnel, click/scroll maps for `/category/*` and the backpack PDP, a replay segment, error analysis). Segment on the dynamic variable `friction_profile`.
-5. Rehearsal tip: every live moment below can be rehearsed on any browser with `?friction=` (per tab session, overrides the panel). Use a private window and `?friction=reset` to start clean.
+5. Open the site with an accept link so the session is recorded without clicking the banner: `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off` (`?consent=accept` stores the choice and is stripped from the URL; `?friction=` is kept; use `?consent=reset` to show the banner). This is a demo site: sessions and test orders are intentionally recorded as real data.
+6. Rehearsal tip: every live moment below can be rehearsed on any browser with `?friction=` (per tab session, overrides the panel). Use a private window and `?friction=reset` to start clean.
 
 ## Phase overview
 

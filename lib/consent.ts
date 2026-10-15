@@ -34,6 +34,32 @@ export function setConsent(value: Consent): void {
   window.dispatchEvent(new Event(EVENT));
 }
 
+export function clearConsent(): void {
+  try {
+    window.localStorage.removeItem(CONSENT_KEY);
+  } catch {
+    // Storage blocked: nothing to clear.
+  }
+  window.dispatchEvent(new Event(EVENT));
+}
+
+/**
+ * Demo helper: `?consent=accept|decline|reset` applies a consent choice and strips the param from the URL
+ * (other params are kept). Any other value is ignored. Call once on mount; never on /demo-controls.
+ */
+export function applyConsentParam(): void {
+  const url = new URL(window.location.href);
+  const value = url.searchParams.get("consent");
+  if (value === null) return;
+  if (url.pathname === "/demo-controls" || url.pathname.startsWith("/demo-controls/")) return;
+  if (value === "accept") setConsent("accepted");
+  else if (value === "decline") setConsent("declined");
+  else if (value === "reset") clearConsent();
+  else return;
+  url.searchParams.delete("consent");
+  window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+}
+
 function subscribe(onChange: () => void): () => void {
   window.addEventListener(EVENT, onChange);
   window.addEventListener("storage", onChange);

@@ -311,3 +311,13 @@ Gaps (not failures):
 - The banner is hidden on `/demo-controls`, so consent can only be given elsewhere.
 
 RESULT: PASS
+
+## Addendum 2026-10-15: `?consent=accept|decline|reset` param
+
+Lint 0 warnings, `tsc --noEmit` clean, build OK. Suites (run one at a time): test:e2e 529 passed / 13 skipped / 0 failed; test:m6 74 passed / 2 skipped; test:defaults 18 passed; test:variants 8 passed + 2 skipped for disabled, override and invalid, 10 passed for dev.
+
+Coverage in `tests/consent.spec.ts` ("?consent= URL param", 5 tests, desktop and mobile): accept hides banner, persists across reload, loads CS and GA only after accept, and strips `consent` while keeping `friction=all:off`; decline sets `declined` with zero tags and zero requests and strips the param; reset after accept restores the banner, clears storage, strips the param; invalid value is ignored (banner stays, nothing stored); `/demo-controls?consent=accept` stores nothing and loads no tags or requests.
+
+Gap (minor, not a failure): the `/demo-controls` test does not assert the `consent` param is left in the URL. Code returns early on that path, so it is untouched. No servers left running; `.env.local` and Upstash untouched.
+
+RESULT: PASS

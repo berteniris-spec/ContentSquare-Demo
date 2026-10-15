@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { setConsent, useConsent } from "@/lib/consent";
+import { applyConsentParam, setConsent, useConsent } from "@/lib/consent";
 import { isUntrackedPath } from "@/lib/tracking/ga";
 
 const BUTTON =
@@ -14,6 +14,11 @@ export function CookieBanner() {
   const { consent, ready } = useConsent();
   const ref = useRef<HTMLDivElement>(null);
   const visible = ready && consent === "unknown" && !isUntrackedPath(pathname);
+
+  // Demo override: ?consent=accept|decline|reset, applied once on mount.
+  useEffect(() => {
+    applyConsentParam();
+  }, []);
 
   // Keep focus and the page end clear of the fixed banner (WCAG 2.4.11).
   useEffect(() => {
