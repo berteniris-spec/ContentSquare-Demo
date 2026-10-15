@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { useConsent } from "@/lib/consent";
 import { useFlags } from "@/lib/flags/FlagsProvider";
 import { pathToPageType } from "@/lib/tracking/pageType";
 import { track } from "@/lib/tracking/track";
@@ -16,11 +17,12 @@ export function RouteTracker() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const { flags, profile, ready } = useFlags();
+  const { consent } = useConsent();
   const last = useRef<string | null>(null);
   const path = pathname + (search ? `?${search}` : "");
 
   useEffect(() => {
-    if (!ready || last.current === path) return;
+    if (!ready || consent !== "accepted" || last.current === path) return;
     const initial = last.current === null;
     last.current = path;
     if (!initial) trackVirtualPageview(path);
@@ -31,7 +33,7 @@ export function RouteTracker() {
       friction: frictionState(flags),
       friction_profile: profile,
     });
-  }, [ready, path, pathname, flags, profile]);
+  }, [ready, consent, path, pathname, flags, profile]);
 
   return null;
 }

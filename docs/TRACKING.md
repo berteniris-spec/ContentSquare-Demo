@@ -4,10 +4,23 @@ Status: **built (M5)**. Contract: `docs/PLAN.md` section 8. Tests: `tests/tracki
 
 Verified only with stubs (Playwright intercepts `t.contentsquare.net` and the Google hosts). **Not verified**: GA4 Realtime/DebugView and the real Contentsquare UI. See "Manual checks".
 
+## Consent gate (read first)
+
+Nothing is loaded, pushed or recorded until the visitor clicks **Accept** in the cookie banner.
+
+- `lib/consent.ts`: `getConsent()` / `hasConsent()` / `setConsent()` / `useConsent()`; value `accepted | declined` in localStorage `tw-consent`; absent = `unknown` (banner shows). Changes broadcast via a `tw-consent-change` event, so tags load without a reload.
+- `ContentsquareTag` and `GoogleAnalyticsTag` render nothing unless consent is `accepted`. `track()` (`lib/tracking/track.ts`), `ensureGtag()` (`ga.ts`) and `uxaPush` (`uxa.ts`) return early without consent: no `dataLayer`, no `gtag`, no `_uxa`.
+- `RouteTracker` waits for `consent === "accepted"` as well as flags `ready`. Accepting mid-visit emits the `page_view` (and `friction_*` variables) for the current page; the Contentsquare tag then sends its own first page view.
+- **Pages viewed before Accept are not recorded** (not backfilled). Decline = never tracked. There is no UI to withdraw or change the choice yet (clear `tw-consent` in localStorage to see the banner again).
+- No banner and no tags on `/demo-controls` (`isUntrackedPath`).
+- Tests: `tests/consent.spec.ts` (banner, Accept, Decline, no requests before consent, `/demo-controls`, touch targets, focus). All Playwright configs seed `tw-consent=accepted` through `tests/consent-state.ts`, so other suites behave as before.
+- Security: the CSP in `next.config.ts` allows the GA and Contentsquare hosts (see `docs/DEPLOYMENT.md`).
+
 ## Code map
 
 | File | Role |
 |---|---|
+| `lib/consent.ts` | Consent state (see above) |
 | `lib/tracking/uxa.ts` | Contentsquare env (`CS_TAG_ID`, `CS_ENABLED`, `CS_SRC`), `uxaPush`, `trackVirtualPageview`, `trackDynamicVariable`, `pushFrictionVariables`, `frictionState` |
 | `lib/tracking/ga.ts` | GA env (`GA_ID`, `GA_ENABLED`, `GA_SRC`), `isUntrackedPath`, idempotent `ensureGtag()`, `sendGaEvent()` |
 | `lib/tracking/track.ts` | `track(event, data)` plus `trackViewItem/AddToCart/RemoveFromCart/BeginCheckout/Purchase`, item builders |
@@ -30,7 +43,7 @@ Recommended in `.env.local`: `NEXT_PUBLIC_GA_ENABLED=false` so localhost does no
 
 ## Where tags load
 
-- Both tags load on every shop route and on the 404 page, `strategy="afterInteractive"` via `next/script`.
+- Both tags load on every shop route and on the 404 page **after Accept**, `strategy="afterInteractive"` via `next/script`.
 - **Neither tag exists on `/demo-controls`** (owner-confirmed): no script, no `window.gtag`, no `config`.
 - 404 page: tags and `data-page-type="not-found"` are present, but no `page_view` (RouteTracker lives in the shop layout).
 - Open owner questions on GA (Enhanced Measurement, ecommerce forwarding, cookies/internal traffic) were resolved with the planner defaults: see `docs/DECISIONS.md`.
@@ -59,7 +72,7 @@ _uxa: [
 - `ensureGtag()` (`lib/tracking/ga.ts`) is idempotent (`window.__gaInit`): keeps one shared `window.dataLayer` (never reassigned), defines `window.gtag` to push `arguments`, and queues `['js', Date]` then `['config', 'G-4PLJ26X0Y9']` once. `track()` also calls it, so `js`/`config` always precede any event even when `view_item` fires before the script component renders.
 - `config` uses default settings; GA4 sends the first `page_view` itself. **No manual `page_view`** on route changes: relies on Enhanced Measurement "page changes based on browser history events" (GA4 default; planner default for Q-GA2).
 - Only `view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, `purchase` are forwarded as `gtag('event', name, ecommerce)` from inside `track()`. The plain `page_view`, friction data and PII are never sent to GA.
-- GA sets first-party `_ga` / `_ga_<id>` cookies. No consent banner (DECISIONS Q5), no Consent Mode. `docs/TRAFFIC_GUIDE.md` section 3 states this and how to set Contentsquare privacy settings.
+- GA sets first-party `_ga` / `_ga_<id>` cookies, now only after Accept (the script does not load before). No Google Consent Mode (the banner gates loading instead). `docs/TRAFFIC_GUIDE.md` section 3 covers Contentsquare privacy settings.
 - Friction state is a Contentsquare feature and is not sent to GA.
 
 ## `window.dataLayer`
@@ -120,5 +133,6 @@ GA forwarding example: `['event', 'add_to_cart', { currency: 'EUR', value: 158, 
 
 ## Manual checks (cannot be automated)
 
+0. On the live site, with DevTools open: no CSP violations in the console; after Accept the GA and Contentsquare scripts load (Network) and `_uxa`/`dataLayer` fill. Local tests use stubs, so real tags under the CSP are unverified.
 1. GA4 Realtime / DebugView: hard loads and SPA navigations each show one page view; a test purchase appears once with the right `transaction_id` and value.
 2. Contentsquare: after allow-listing `tidewild-demo.vercel.app`, confirm the tag consumes `_uxa` (virtual page views as separate pages, `friction_*` and `order_value` visible as dynamic variables). Set up segments on `friction_*`.

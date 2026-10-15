@@ -1,3 +1,4 @@
+import { consentState } from "./tests/consent-state";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -36,7 +37,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 2,
   reporter: [["list"]],
-  use: { baseURL, trace: "retain-on-failure" },
+  use: { baseURL, trace: "retain-on-failure", storageState: consentState(baseURL) },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
     { name: "mobile", use: { ...devices["iPhone 13"], browserName: "chromium" } },

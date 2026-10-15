@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { consentState } from "./tests/consent-state";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -32,6 +33,12 @@ if (!process.env.TW_M6_BUILT) {
   process.env.TW_M6_BUILT = "1";
 }
 
+// Seeds consent for every port the suite uses (tests may navigate to any of the five servers).
+const panelConsent = () => ({
+  cookies: [],
+  origins: [3000, 3101, 3102, 3103, 3104].flatMap((p) => consentState(`http://localhost:${p}`).origins),
+});
+
 const FAKE_UPSTASH = {
   KV_REST_API_URL: "http://127.0.0.1:9",
   KV_REST_API_TOKEN: "fake-token",
@@ -57,7 +64,7 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   reporter: [["list"]],
-  use: { baseURL: "http://localhost:3000", trace: "retain-on-failure" },
+  use: { baseURL: "http://localhost:3000", trace: "retain-on-failure", storageState: panelConsent() },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
     { name: "mobile", use: { ...devices["iPhone 13"], browserName: "chromium" } },

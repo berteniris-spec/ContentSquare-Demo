@@ -1,3 +1,4 @@
+import { hasConsent } from "@/lib/consent";
 // Google Analytics 4 (gtag.js) helpers. Env vars are read with literal process.env.NEXT_PUBLIC_* so Next inlines them.
 const RAW_ID = process.env.NEXT_PUBLIC_GA_ID ?? "G-4PLJ26X0Y9";
 const RAW_ENABLED = process.env.NEXT_PUBLIC_GA_ENABLED;
@@ -20,6 +21,7 @@ export function isUntrackedPath(pathname: string): boolean {
  */
 export function ensureGtag(): boolean {
   if (typeof window === "undefined" || !GA_ENABLED || !GA_ID) return false;
+  if (!hasConsent()) return false;
   if (isUntrackedPath(window.location.pathname)) return false;
   if (window.__gaInit) return true;
   window.__gaInit = true;

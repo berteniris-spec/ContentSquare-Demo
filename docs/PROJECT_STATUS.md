@@ -2,6 +2,15 @@
 
 Last updated: 2026-10-15
 
+## Latest (post-M7 additions, uncommitted)
+
+- **Cookie consent banner** gates GA4 and Contentsquare (`lib/consent.ts`, `components/layout/CookieBanner.tsx`, localStorage `tw-consent`). Tags and tracking helpers no-op without Accept; `RouteTracker` waits; no banner or tags on `/demo-controls`. Pre-consent pages are not recorded; no withdraw/change UI yet. Playwright configs seed consent (`tests/consent-state.ts`); `tests/consent.spec.ts` added.
+- **Security headers** in `next.config.ts` (nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS, loose enforced CSP); `tests/headers.spec.ts`. **To verify on the live site:** real GA and Contentsquare under the CSP (console errors, tags loading after Accept).
+- **Checkout expiry auto-slash** (`formatExpiry` in `CheckoutForm.tsx`; commit `f0b8fbf`).
+- **npm audit:** 0 production vulnerabilities; 5 high, dev-only (`braces` via `eslint-config-next`); fix is a breaking downgrade, deferred.
+- **Test counts now:** main 519 passed / 0 failed / 13 skipped; panel 74/0/2; defaults 18; variants 8 passed + 2 skipped each (dev 10).
+- Docs updated: TRACKING, TRAFFIC_GUIDE, DEPLOYMENT, DECISIONS, ARCHITECTURE, FEATURES, CLAUDE.md.
+
 ## Current state
 
 | Milestone | State |
@@ -29,8 +38,8 @@ Git: initial commit `a3850bc` (through M3), then `64797dc` (M3 review fixes and 
 
 1. **Review and commit M4-M7.** Nothing has been committed since `64797dc`. Decide about the untracked `.agents/`, `.claude/skills/`, `skills-lock.json` (installed by the Upstash integration; commit or delete). `.gitignore` has a new `.claude/settings.local.json` line. Never commit `.env.local` or `.vercel/`.
 2. **Push and/or `vercel deploy --prod --yes`.** Production still runs the M3 build (`docs/DEPLOYMENT.md` "Deploying M4-M7").
-3. **Allow-list `tidewild-demo.vercel.app` in Contentsquare** (project settings; also check privacy settings, there is no cookie banner: `docs/TRAFFIC_GUIDE.md`).
-4. **Post-deploy checks** (cannot be verified locally; checklist in `docs/DEPLOYMENT.md`): real Upstash persistence and latency; a flip reaching a new visitor within about 60 s; the panel API not cached; GA4 Realtime/DebugView (one page view per navigation, one purchase); Contentsquare consuming `_uxa` page views, `friction_*` and `order_value`; `/api/hero-image` weight (~1.73 MB, ~3 s) on Vercel.
+3. **Allow-list `tidewild-demo.vercel.app` in Contentsquare** (project settings; also check privacy settings; a consent banner exists and visitors must click Accept: `docs/TRAFFIC_GUIDE.md`).
+4. **Post-deploy checks** (cannot be verified locally; checklist in `docs/DEPLOYMENT.md`): CSP console errors with the real GA/Contentsquare tags, tags loading after Accept; real Upstash persistence and latency; a flip reaching a new visitor within about 60 s; the panel API not cached; GA4 Realtime/DebugView (one page view per navigation, one purchase); Contentsquare consuming `_uxa` page views, `friction_*` and `order_value`; `/api/hero-image` weight (~1.73 MB, ~3 s) on Vercel.
 5. **Keep `DEMO_CONTROLS_PIN` safe.** It was set as a sensitive Vercel env var. A plaintext copy exists in the Claude session scratchpad file; delete it, or rotate the PIN, if the machine is shared. The PIN is not in any repo file and must not be added.
 6. **Optional:** set `NEXT_PUBLIC_GA_ENABLED=false` in `.env.local` so local runs do not hit the real GA4 property.
 7. Then run the demo with `docs/DEMO_SCRIPT.md` and generate sessions with `docs/TRAFFIC_GUIDE.md` (the optional `scripts/traffic/` persona script was not built).
@@ -119,6 +128,7 @@ Git: initial commit `a3850bc` (through M3), then `64797dc` (M3 review fixes and 
 
 ## Change log
 
+- 2026-10-15: Consent banner gating GA4 + Contentsquare, security headers + loose CSP, expiry auto-slash, npm audit review (0 prod vulns; 5 dev-only highs deferred). Tests: main 519/0/13, panel 74/0/2, defaults 18, variants 8+2 skipped each, dev 10. Docs updated. Not committed or deployed; live CSP/tag check pending.
 - 2026-10-15: Panel focus-drop fixed (`aria-disabled` on All ON / All OFF / Only fix errors / Refresh; `Button.tsx` `aria-disabled:` styles; 8 `test.fail()` markers removed). Tester PASS: test:m6 74 passed / 0 failed / 2 skipped (was 66), test:e2e 499/0/7, test:defaults 18, test:variants 8 per variant and 10 in dev, lint 0 warnings, tsc and build pass. Double activation sends exactly 1 POST and 1 history entry. Trade-off: aria-disabled buttons stay focusable and are announced as unavailable.
 - 2026-10-15: M7 done. Final docs written (DEMO_SCRIPT, TRAFFIC_GUIDE, DEPLOYMENT, README, CLAUDE.md). Designer APPROVED (CR 1 hero slow-visibility fixed; CR 2 and Reset to defaults not applied). Final Tester PASS: main 499/0/7, panel 66/0/2, variants 8+2 skipped each (dev 10), defaults 18; lint 0 warnings, tsc and build pass. Open low item: focus drop on panel master buttons. Prod still runs the M3 build; manual steps listed above.
 - 2026-10-14: M6 done. Built flag store (Upstash/memory/none), PIN auth, `/api/flags`, `/api/demo-controls/flags`, `/demo-controls` panel, `robots.ts`, `FlagsProvider` global fetch; global layer now live in resolution. Designer APPROVED (no must-fix), Tester PASS: main 499/0/7, panel suite (`npm run test:m6`) 66/0/2. Real Upstash and CDN propagation unverified until deploy. Docs updated (FRICTION_FLAGS, DEPLOYMENT, ARCHITECTURE, FEATURES, DECISIONS, STATUS, README, CLAUDE). Prod still runs the M3 build.

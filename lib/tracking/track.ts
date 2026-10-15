@@ -1,4 +1,5 @@
 // dataLayer helper. Pushes plain { event, ...data } objects onto the shared window.dataLayer.
+import { hasConsent } from "@/lib/consent";
 import { ensureGtag, sendGaEvent } from "./ga";
 import { getById, type Product } from "@/lib/products";
 import type { CartItem } from "@/lib/cart/store";
@@ -8,7 +9,7 @@ import type { Order } from "@/lib/order";
 const GA_FORWARDED = new Set(["view_item", "add_to_cart", "remove_from_cart", "begin_checkout", "purchase"]);
 
 export function track(event: string, data: Record<string, unknown> = {}): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !hasConsent()) return;
   // Makes sure `js` and `config` precede any event in the shared queue.
   ensureGtag();
   window.dataLayer = window.dataLayer || [];

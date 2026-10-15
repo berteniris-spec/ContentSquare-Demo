@@ -1,3 +1,4 @@
+import { consentState } from "./tests/consent-state";
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3000;
@@ -11,7 +12,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL,
-    trace: "retain-on-failure",
+    trace: "retain-on-failure", storageState: consentState(baseURL),
   },
   projects: [
     {

@@ -2,6 +2,16 @@
 
 Newest first. Each entry: decision, why, date.
 
+## 2026-10-15 - Cookie consent, security headers, audit
+
+1. **Cookie consent banner gates GA4 and Contentsquare (reverses the earlier "no banner" answer, Q5).** `lib/consent.ts` (localStorage `tw-consent`), `components/layout/CookieBanner.tsx`; tags and `track`/`uxa` helpers no-op without Accept; `RouteTracker` waits. No banner or tags on `/demo-controls`.
+   Why: loading tracking cookies and session recording without consent is not acceptable for a public site.
+   Consequences: pre-consent pages are not recorded; Decline = never tracked; no withdraw/change UI yet (accepted for now). Every Playwright config seeds `tw-consent=accepted` (`tests/consent-state.ts`) so existing suites are unchanged; `tests/consent.spec.ts` covers the banner.
+2. **Security headers in `next.config.ts`:** nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, Permissions-Policy (camera, microphone, geolocation, payment off), HSTS (2 years, includeSubDomains), and an **enforced but deliberately loose CSP** (`'unsafe-inline'` scripts/styles, `connect-src 'self' https: wss:`, GA and Contentsquare hosts allowed).
+   Why: a strict CSP risks silently blocking the Contentsquare tag and its collectors, which would break the demo. Real GA/Contentsquare under the CSP is still to verify on the live site (`docs/DEPLOYMENT.md`). Covered locally by `tests/headers.spec.ts`.
+3. **Checkout expiry auto-slash:** `formatExpiry` in `CheckoutForm.tsx` inserts `/` after two typed digits (not when deleting). Purely a usability fix, not a friction flag.
+4. **npm audit:** 0 production vulnerabilities; 5 high, dev-only (`braces` via `eslint-config-next`). The fix would be a breaking downgrade, so deferred.
+
 ## 2026-10-14 - M5 Tracking (built)
 
 1. **Open GA owner questions resolved with the planner defaults:** Q-GA2 Enhanced Measurement history events assumed ON (no manual `page_view`); Q-GA3 ecommerce events forwarded to GA4; Q-GA4 GA cookies accepted without a consent banner (to be stated in the traffic guide/privacy note in M7). If the owner later says otherwise, only `RouteTracker`/`track.ts` change.
@@ -86,7 +96,7 @@ Open owner questions:
 2. **PIN and store setup: store created after the build.** Owner sets `DEMO_CONTROLS_PIN` (6+ digits) in Vercel and `.env.local`. During the build the Tester verifies live toggles against a local in-memory store; the real Upstash store is created by the owner at deploy time. No `VERCEL_API_TOKEN` required.
 3. **Default flag state: every friction flag ON except `expressShippingError`.** Phase A (baseline) = 8 flags on; Phase B = turn `expressShippingError` on; Phase C (fixed) = turn `expressShippingError` and `postcodeValidation` off. `friction_profile`: `express_error` if expressShippingError on; `clean` if all off; `fixed` if postcodeValidation off (and express off); else `baseline`.
 4. **Checkout countries: NL (default), BE, DE, FR. Express error trigger: postcodes starting with "10".** Strict postcode validation rejects valid formats like "1234 AB" / "1234ab" on first attempt.
-5. **Cookie consent: no banner** (Planner default; owner did not override). Contentsquare privacy settings are configured to collect without consent; the traffic guide lists this as a setup check.
+5. **Cookie consent: no banner** (Planner default; owner did not override). Contentsquare privacy settings are configured to collect without consent; the traffic guide lists this as a setup check. **Superseded 2026-10-15: a consent banner now exists (see top entry).**
 
 ## 2026-10-14 - Agents run as general-purpose subagents
 The orchestrating session started in the parent folder, so project agents in `.claude/agents/` were not registered. Each role is run as a general-purpose subagent instructed to read and follow its role file. Sessions opened inside the repo can use the named agents directly.
@@ -121,4 +131,4 @@ The orchestrating session started in the parent folder, so project agents in `.c
 2. **Optional `scripts/traffic/` persona script not built.** Why: hand-made sessions are more convincing and the bot-filtering caveat applies; `TRAFFIC_GUIDE.md` covers manual generation.
 3. **Focus-drop item fixed (post-M7):** panel master buttons use `aria-disabled` and ignore clicks while busy instead of `disabled`; focus is kept (accepted trade-off: they stay focusable and are announced as unavailable). The 8 expected-failure tests were un-marked.
 4. **Bare deployment shows the baseline (8 flags ON).** Why: code defaults are the Phase A state; the clean state is explicit (`?friction=all:off` or All friction OFF).
-5. **GA cookies without a banner** (Q-GA4/Q5) documented in `TRAFFIC_GUIDE.md` section 3, along with GA4 internal-traffic filtering.
+5. **GA cookies without a banner (superseded 2026-10-15 by the consent banner)** (Q-GA4/Q5) documented in `TRAFFIC_GUIDE.md` section 3, along with GA4 internal-traffic filtering.

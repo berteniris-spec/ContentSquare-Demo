@@ -26,6 +26,10 @@ Tip: set `NEXT_PUBLIC_GA_ENABLED=false` in `.env.local` so localhost does not hi
 
 First Playwright run: `npx playwright install chromium`. Run the suites one at a time; each rebuilds `.next/`. Tests never touch the real flag store.
 
+## Consent
+
+GA4 and Contentsquare load only after the visitor clicks Accept in the cookie banner (`lib/consent.ts`); see `docs/TRACKING.md`.
+
 ## Friction flags
 
 Nine flags; eight are ON by default (baseline), `expressShippingError` is OFF. Override per tab with `?friction=flag:on,flag:off` (also `all:on`, `all:off`, `reset`). Live global toggles for all visitors: `/demo-controls` with `DEMO_CONTROLS_PIN` (Upstash on Vercel, `FLAG_STORE=memory` locally). The clean state needs `?friction=all:off` or the panel's All friction OFF.

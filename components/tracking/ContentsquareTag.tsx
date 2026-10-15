@@ -2,13 +2,15 @@
 
 import { usePathname } from "next/navigation";
 import Script from "next/script";
+import { useConsent } from "@/lib/consent";
 import { isUntrackedPath } from "@/lib/tracking/ga";
 import { CS_ENABLED, CS_SRC } from "@/lib/tracking/uxa";
 
-/** Contentsquare tag. Renders nothing when disabled or on /demo-controls. */
+/** Contentsquare tag. Renders nothing without consent, when disabled or on /demo-controls. */
 export function ContentsquareTag() {
   const pathname = usePathname();
-  if (!CS_ENABLED || !CS_SRC || isUntrackedPath(pathname)) return null;
+  const { consent } = useConsent();
+  if (consent !== "accepted" || !CS_ENABLED || !CS_SRC || isUntrackedPath(pathname)) return null;
   return (
     <>
       <Script id="cs-init" strategy="afterInteractive">

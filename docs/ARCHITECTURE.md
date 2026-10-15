@@ -12,7 +12,7 @@ Status: reflects the code after M6. Planned parts are marked with their mileston
 
 ```
 app/
-  layout.tsx            # <html lang="en-GB">, globals.css, SkipLink, default metadata; FlagsProvider around children, then ContentsquareTag, GoogleAnalyticsTag, PageTypeSync
+  layout.tsx            # <html lang="en-GB">, globals.css, SkipLink, default metadata; FlagsProvider around children, then CookieBanner, ContentsquareTag, GoogleAnalyticsTag, PageTypeSync
   globals.css           # Tailwind v4 import + @theme tokens (DESIGN_TOKENS.md), incl. --breakpoint-xs 22.5rem
   icon.svg              # favicon (tide glyph)
   not-found.tsx         # branded 404 with shop chrome
@@ -118,10 +118,17 @@ Nothing in the PLAN structure is outstanding for M6; M7 is polish and handover.
 - Public `GET /api/flags` returns only `{configured, store, flags, updatedAt}` (no history); no store -> 200 `configured:false`; store error -> 200 `error:true`.
 - The panel shows `effective` values and their `source` (`global|env|default`) from `describeEffective`, plus the derived profile.
 
+### Consent and security headers
+
+- `lib/consent.ts` holds consent in localStorage `tw-consent` (`accepted|declined|unknown`) and exposes `useConsent()` through `useSyncExternalStore` (`ready` false until hydrated, so no banner flash). `CookieBanner` (`components/layout/CookieBanner.tsx`, mounted in `app/layout.tsx`) writes it with `setConsent()`; hidden on `/demo-controls`.
+- Gate points: `ContentsquareTag`, `GoogleAnalyticsTag` (render null), `track()`, `ensureGtag()`/`sendGaEvent`, `uxaPush` (return early via `hasConsent()`), and `RouteTracker` (effect waits for `accepted`).
+- `next.config.ts` `headers()` applies `SECURITY_HEADERS` (CSP, nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS) to every route. The CSP is enforced and loose; `'unsafe-eval'` only in dev. New third-party hosts must be added there.
+- Tests: `tests/consent.spec.ts`, `tests/consent-state.ts` (storageState seed used by all four Playwright configs; the M6 config seeds five ports), `tests/headers.spec.ts`.
+
 ### Tracking flow (M5)
 
 - Mounts: `app/layout.tsx` renders `ContentsquareTag`, `GoogleAnalyticsTag` and `PageTypeSync` after `FlagsProvider` (so they also see `/demo-controls`; the tags return null there). `RouteTracker` is in `app/(shop)/layout.tsx` inside `<Suspense fallback={null}>` (uses `useSearchParams`), so it never runs on `/demo-controls` or the 404 page.
-- `RouteTracker`: waits for `useFlags().ready`, then once per pathname + search: (route changes only, and only if `window.__csLoaded`) `_uxa trackPageview`, then ten `trackDynamicVariable` pushes, then dataLayer `page_view`.
+- `RouteTracker`: waits for `useFlags().ready` and consent `accepted`, then once per pathname + search: (route changes only, and only if `window.__csLoaded`) `_uxa trackPageview`, then ten `trackDynamicVariable` pushes, then dataLayer `page_view`.
 - Events: components call `trackViewItem`/`trackAddToCart`/`trackRemoveFromCart`/`trackBeginCheckout`/`trackPurchase` from `lib/tracking/track.ts`. `track()` calls `ensureGtag()` first, pushes `{ event, ... }` onto the shared `window.dataLayer`, and for the five ecommerce events also `gtag('event', ...)`. `gtag` pushes `Arguments` objects onto the same array.
 - Once-only: `view_item` via a ref guard in `PurchasePanel`; `purchase` + `order_value` via the stored `purchaseTracked` flag re-read inside the effect in `ConfirmationView`.
 - `PageTypeSync` sets `body.dataset.pageType` from `pathToPageType`.

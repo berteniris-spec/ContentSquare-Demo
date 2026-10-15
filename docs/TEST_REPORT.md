@@ -285,3 +285,29 @@ None.
 - **Checkout:** red inline errors under each field, demo banner above the form, sticky summary with "Pay €258.30".
 - **Confirmation:** order number, email, summary with shipping method.
 - **Mobile:** stacks correctly.
+
+## Addendum 2026-10-15: cookie consent banner and security headers
+
+| Check | Result |
+|---|---|
+| `npm run lint` / `npx tsc --noEmit` / `npm run build` | PASS / PASS / PASS |
+| `npm run test:e2e` (incl. `tests/consent.spec.ts`, `tests/headers.spec.ts`) | PASS: 519 passed, 0 failed, 13 skipped |
+| `npm run test:m6` | PASS: 74 passed, 0 failed, 2 skipped |
+| `npm run test:defaults` | PASS: 18 passed |
+| `npm run test:variants` (disabled / override / invalid / dev) | PASS: 8 passed + 2 skipped x3; dev 10 passed |
+
+Suites ran one at a time; no servers left running.
+
+Findings:
+- Consent tests are real: the fixtures in `tests/fixtures.ts` record every `t.contentsquare.net` and Google request, and the pre-consent and Decline tests assert zero tag script elements, zero requests, and no `dataLayer`/`gtag` globals. Accept asserts both tags and requests appear and consent persists across reload. `/demo-controls` has no banner and no tags.
+- All five Playwright configs seed `tw-consent=accepted` through `consentState()` (m6 for all five ports); only `consent.spec.ts` overrides it with empty storage.
+- Headers tests cover `/`, `/demo-controls`, `/api/flags` (six headers, CSP directives, cache-control kept) and check for CSP console violations on 5 routes with tags stubbed.
+- FLAG_STORE is explicit in every config (memory, none, or upstash with a fake unreachable URL); KV_/UPSTASH_ are blanked or faked, so real Upstash is not touched. `.env.local` is gitignored and has no PIN set.
+- Secrets scan: no real tokens found. The test-only PIN `246810` is committed in the configs, `README.md`, `CLAUDE.md`, `docs/ARCHITECTURE.md` and specs (pre-existing). Fine only if it is not the production PIN.
+
+Gaps (not failures):
+- The CSP uses `'unsafe-inline'` and `connect-src https:`, so it is permissive. The tests check the header text, not that real tags work under the CSP, because tags are stubbed.
+- A real GA4 / Contentsquare load under the CSP was not verified (stubs only).
+- The banner is hidden on `/demo-controls`, so consent can only be given elsewhere.
+
+RESULT: PASS

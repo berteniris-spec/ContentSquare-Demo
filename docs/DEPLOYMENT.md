@@ -100,7 +100,7 @@ Prerequisites locally (last run, all green): `npm run lint` (0 warnings), `npx t
 
 ## Contentsquare domain allow-listing (reminder)
 
-In the Contentsquare project settings, allow-list the production domain **`tidewild-demo.vercel.app`** (and any custom domain or preview domain you demo from). Without it the tag will not collect data from production. Also check the project's privacy settings (no cookie banner exists, see `TRAFFIC_GUIDE.md`).
+In the Contentsquare project settings, allow-list the production domain **`tidewild-demo.vercel.app`** (and any custom domain or preview domain you demo from). Without it the tag will not collect data from production. Also check the project's privacy settings; the site has a consent banner and the tag only loads after Accept (see `TRAFFIC_GUIDE.md`).
 
 ## Smoke check
 
@@ -123,8 +123,14 @@ Flag store (M6):
 4. **Wrong/missing PIN**: panel shows "Wrong PIN" (about 0.5 s delay). The API must answer 401 without the header.
 5. After the check, set the flags back to Phase A (see `FRICTION_FLAGS.md`).
 
+Security headers and consent (new, not yet verified live):
+1. **CSP**: open the live site with DevTools, click Accept, and check the console for "Content Security Policy" / "violates the following directive" errors. The CSP (`next.config.ts`) is enforced and deliberately loose; if the real GA or Contentsquare tag (or its collectors) is blocked, add the host to `script-src` / `connect-src`.
+2. **Tags after Accept**: before Accept, Network shows no `googletagmanager.com` or `contentsquare` requests; after Accept both load and `window._uxa` / `dataLayer` fill. After Decline, nothing loads.
+3. **Headers**: `curl -sI https://tidewild-demo.vercel.app/` shows `x-content-type-options`, `referrer-policy`, `x-frame-options: DENY`, `permissions-policy`, `strict-transport-security`, `content-security-policy`; `/api/flags` still has its own `Cache-Control`.
+4. `/demo-controls` has no banner and no tags.
+
 Tracking (M5):
-1. **GA4**: open Realtime and DebugView for property `G-4PLJ26X0Y9`. Hard loads and SPA navigations should each show one page view (no doubles); a test purchase should appear once. `/demo-controls` sends nothing by design.
+1. **GA4** (click Accept first): open Realtime and DebugView for property `G-4PLJ26X0Y9`. Hard loads and SPA navigations should each show one page view (no doubles); a test purchase should appear once. `/demo-controls` sends nothing by design.
 2. **Contentsquare**: after allow-listing `tidewild-demo.vercel.app`, confirm the tag loads (`t.contentsquare.net/uxa/506730812ef03.js`), consumes `_uxa` (virtual page views on route changes, `friction_*` and `order_value` dynamic variables).
 3. `?friction=` overrides work on the live URL.
 4. **Panel API not cached**: `curl -i -H "x-demo-pin: <PIN>" https://tidewild-demo.vercel.app/api/demo-controls/flags` must not be served from the CDN (no `x-vercel-cache: HIT`), and a toggle then Refresh in the panel shows the new value immediately.

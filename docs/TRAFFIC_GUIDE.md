@@ -25,11 +25,12 @@ The optional `scripts/traffic/` Playwright persona script was **not built**. All
 - For local runs put `NEXT_PUBLIC_GA_ENABLED=false` in `.env.local` so `localhost` does not hit the real property.
 - Never generate load on the panel API; it is the live switch for all visitors.
 
-## 3. Cookies and consent (no banner)
+## 3. Cookies and consent (banner)
 
-- The site has **no cookie consent banner** (owner decision, `DECISIONS.md`) and no Consent Mode.
-- Google Analytics 4 therefore loads on every shop page and sets first-party `_ga` and `_ga_<id>` cookies without consent. The Contentsquare tag also loads without a consent step.
-- In Contentsquare **privacy settings**, configure the project to collect without consent (or set it to your preferred mode) before generating traffic. If the project is set to require consent, no sessions will be recorded because the site never signals consent. Also review masking: the checkout fields (email, name, address, card number, expiry, CVC) should be masked or excluded in the privacy settings, even though the checkout takes test data only and no real payment is processed.
+- The site shows a **cookie banner** (Accept / Decline). **Every visitor and every generated session must click Accept first, otherwise nothing is recorded**: Contentsquare and GA4 do not load, and Decline keeps them off for good. Pages viewed before clicking Accept are not recorded (the session starts at the page where you accept), so click Accept on the landing page.
+- The choice is stored in localStorage `tw-consent`. A new incognito window or cleared storage asks again; that is the normal way to simulate a new person (section 4). There is no way yet to withdraw the choice in the UI.
+- GA4 cookies (`_ga`, `_ga_<id>`) are now set only after Accept. The banner is not shown on `/demo-controls`.
+- In Contentsquare **privacy settings**, review the consent mode against this behaviour (the tag only loads after Accept, so collecting without the project's own consent step is the simplest setting). Also review masking: the checkout fields (email, name, address, card number, expiry, CVC) should be masked or excluded in the privacy settings, even though the checkout takes test data only and no real payment is processed.
 - This is a fictional store for a demo; do not use real personal data or real card numbers anywhere. Use `4242 4242 4242 4242`.
 
 ## 4. Making sessions look like different people
@@ -105,6 +106,7 @@ Also log each flag switch: time, flag/button, who.
 
 ## 11. Pre-interview sanity checklist
 
+- [ ] Every rehearsal/real session clicked Accept on the cookie banner (otherwise it is not in Contentsquare or GA4).
 - [ ] Panel: store says Upstash, profile and phase line match what you expect, `expressShippingError` state known, panel locked/closed on the shared screen.
 - [ ] Funnel shows the expected shape (landed -> PLP -> PDP -> cart -> checkout -> confirmation) with a visible drop at cart-to-checkout.
 - [ ] At least a few replays with rage/dead clicks (dead swatch, silent size) bookmarked.

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CookieBanner } from "@/components/layout/CookieBanner";
 import { SkipLink } from "@/components/layout/SkipLink";
 import { ContentsquareTag } from "@/components/tracking/ContentsquareTag";
 import { GoogleAnalyticsTag } from "@/components/tracking/GoogleAnalyticsTag";
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ContentsquareTag />
         <GoogleAnalyticsTag />
         <PageTypeSync />
+        <CookieBanner />
       </body>
     </html>
   );

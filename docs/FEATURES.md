@@ -121,6 +121,7 @@ Page: `app/(shop)/checkout/page.tsx` (H1, `DemoBanner`, `CheckoutForm`). Main co
   - On submit, focus moves to the first invalid field in visual order (`FIELD_ORDER`: email, first name, last name, street, postcode, city, country, card number, expiry, CVC).
 - **Summary** (`CheckoutSummary.tsx`, sticky from `lg`): line thumbnails with variant and quantity, rows `checkout-summary-*`, submit `checkout-submit` "Pay €X" (outside the form, linked with `form=`), trust line, then "Back to cart".
 - **Processing**: on a valid submit the button shows a spinner and "Processing…" (`checkout-processing`), is `disabled` and `aria-busy`, stays accent-coloured; inputs are disabled. After 1.5 s it saves the order to sessionStorage `tw-last-order`, navigates to `/confirmation` and clears the cart (including the promo).
+- **Expiry auto-slash**: `formatExpiry` (`CheckoutForm.tsx`) turns typed digits into `MM/YY`, adding the `/` after the second digit (not when deleting).
 - **Card privacy**: card values live only in component state; they are never persisted, logged, tracked or saved in the order.
 - Two-column layout from `lg` (form 7/12, summary 5/12); single column on mobile with the summary after Payment.
 
@@ -154,12 +155,17 @@ M4 also landed the deferred nice-to-haves: size-chip error border and sticky PDP
 
 Details and payloads: `TRACKING.md`. Code: `lib/tracking/*`, `components/tracking/*`.
 
-- **Contentsquare tag** and **GA4** (`G-4PLJ26X0Y9`) load on shop routes and 404, never on `/demo-controls`; both switchable by `NEXT_PUBLIC_*_ENABLED=false`.
+- **Contentsquare tag** and **GA4** (`G-4PLJ26X0Y9`) load on shop routes and 404 only after the visitor accepts the cookie banner, never on `/demo-controls`; both switchable by `NEXT_PUBLIC_*_ENABLED=false`.
 - **Virtual page views**: `_uxa trackPageview` on client route changes only (after the tag loaded); initial page view is the tag's own.
 - **Dynamic variables**: ten `friction_*` on every page view; `order_value` once on confirmation.
 - **dataLayer events**: `page_view`, `view_item` (PDP mount), `add_to_cart` (not when size missing/silentSize blocks), `remove_from_cart` (Remove only), `begin_checkout` (checkout mount, non-empty cart), `purchase` (once per order). Five ecommerce events are also sent to GA4; no manual GA `page_view`.
 - **`data-page-type`** on `<body>` for every route (`PageTypeSync`).
 - No PII (email, address) or card data in any push.
+
+## Cookie consent and security headers
+
+- **Cookie banner** (`components/layout/CookieBanner.tsx`, `cookie-banner`, `cookie-accept`, `cookie-decline`): fixed bottom region "Cookie consent", Accept / Decline (44 px targets), does not take focus, pads the page so it never covers content. Choice persists in localStorage `tw-consent` (`lib/consent.ts`). Not shown on `/demo-controls`. No withdraw/change UI yet; pre-consent pages are not recorded. Details: `TRACKING.md`.
+- **Security headers** (`next.config.ts`): nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS and a deliberately loose enforced CSP. Live verification with the real tags pending (`DEPLOYMENT.md`).
 
 ## Live toggles and control panel (M6)
 

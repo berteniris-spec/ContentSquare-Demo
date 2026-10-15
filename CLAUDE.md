@@ -15,6 +15,7 @@ The main session orchestrates: planner -> (per milestone) builder -> designer ->
 - Design tokens: `docs/DESIGN_TOKENS.md`, implemented as the `@theme` in `app/globals.css`. Use only token classes (no hex, no default Tailwind palette, no arbitrary values; use the `xs` breakpoint, not `min-[360px]:`). The only exception is the SVG renderer. System font stack, light theme only.
 - This Next.js version has breaking changes: read `AGENTS.md` and `node_modules/next/dist/docs/` before writing Next code. `cacheComponents` stays off (`next.config.ts`).
 - Cart: use `useCart()` / `useCartUi()` from `lib/cart/CartProvider.tsx` (localStorage `tw-cart-v1`). All money maths goes through `lib/pricing.ts`. Last order: sessionStorage `tw-last-order` (`lib/order.ts`); checkout validation: `lib/checkout/validation.ts`.
+- Consent: GA4 and Contentsquare load only after Accept in the cookie banner (`lib/consent.ts`, localStorage `tw-consent`, `components/layout/CookieBanner.tsx`); `track*`/`uxa` helpers no-op without consent. Security headers incl. an enforced loose CSP live in `next.config.ts`; a new third-party host needs a CSP entry.
 - Tracking: use `track*` helpers in `lib/tracking/track.ts` and `uxa.ts`; never add a manual GA `page_view`; no PII in pushes; no tags on `/demo-controls`. See `docs/TRACKING.md`.
 - Flags resolve override > global (store via `/api/flags`) > env > defaults (`lib/flags/`). Control panel `/demo-controls` uses `DEMO_CONTROLS_PIN` via header `x-demo-pin`; `FLAG_STORE=memory` is refused on Vercel. Never put a real PIN or Upstash token in the repo or docs.
 - Friction items are intentional and flag-gated (`lib/config.ts`); do not "fix" them.
@@ -28,7 +29,7 @@ The main session orchestrates: planner -> (per milestone) builder -> designer ->
 - `npm run test:e2e`: Playwright e2e (builds and starts on port 3000 with `FLAG_STORE=memory`, `DEMO_CONTROLS_PIN=246810`)
 - `npm run test:variants`: runs `tests-variants/` four times (`VARIANT=disabled|override|invalid|dev`); also rebuilds `.next/`
 - `npm run test:defaults`: shipped default state with no `NEXT_PUBLIC_FRICTION_*` set (`playwright.defaults.config.ts`, `tests-defaults/`, port 3300, memory store)
-- Run the Playwright suites one at a time (each rebuilds `.next/`). Last full run (M7): main 499/0/7, panel 74/0/2, variants 8 passed + 2 skipped each (dev 10 passed), defaults 18; lint 0 warnings.
+- Run the Playwright suites one at a time (each rebuilds `.next/`). Last full run (consent + security headers): main 519/0/13, panel 74/0/2, variants 8 passed + 2 skipped each (dev 10 passed), defaults 18; lint 0 warnings. All Playwright configs seed `tw-consent=accepted` via `tests/consent-state.ts`; `tests/consent.spec.ts` clears it to test the banner.
 
 ## Friction flags
 Eight of nine flags are ON by default (baseline); the clean state needs `?friction=all:off` or the panel's All friction OFF. Read flags only with `useFlag(key)` / `useFlags()` from `lib/flags/FlagsProvider.tsx`. Override in the browser with `?friction=flag:on,flag:off` (`all:on|off`, `reset`). The e2e server sets all `NEXT_PUBLIC_FRICTION_*` to `off`; friction tests use `?friction=`. See `docs/FRICTION_FLAGS.md`.
