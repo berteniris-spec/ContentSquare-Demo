@@ -101,12 +101,12 @@ Prerequisites locally (last run, all green): `npm run lint` (0 warnings), `npx t
 ## Contentsquare project settings (reminder)
 
 - **No domain allow-list is needed.** The owner's Contentsquare project has none; its only related setting is **IP blocking**, currently with no entries, so your own sessions DO record. If you want your own traffic excluded, add your IP there.
-- The site has a consent banner: the tag only loads after the visitor clicks **Accept** or opens a link with `?consent=accept` (e.g. `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off`; see `TRAFFIC_GUIDE.md`). This is a demo site: all sessions and test orders are intentionally recorded as real data. `?consent=` needs no env var and no code deploy changes beyond the build.
+- **The Contentsquare tag loads for every visitor with no consent** (since 2026-10-19), so the installation check detects it on a plain first visit. It failed once the tag was gated behind the banner, and `?consent=accept` did not satisfy the verification. Only Google Analytics sits behind the cookie banner (Accept, or a `?consent=accept` link; see `TRAFFIC_GUIDE.md`). This is a demo site: all sessions and test orders are intentionally recorded as real data. `?consent=` needs no env var. Re-run the installation check after deploying this change.
 - Also check the project's privacy settings.
 
 ### Testing a purchase
 
-Complete checkout in a clean private window after clicking Accept. GA4 Realtime shows `purchase` (`transaction_id`, `value`, currency EUR) within about a minute. Contentsquare shows the `/confirmation` page and the dynamic variable `order_value` (the variable must be set up and visible in the project). Test orders appear in real data (GA4 and Contentsquare), so note them in the session log or filter them out.
+Complete checkout in a clean private window (click Accept for GA4). GA4 Realtime shows `purchase` (`transaction_id`, `value`, currency EUR) within about a minute. Contentsquare shows the `/confirmation` page and the dynamic variable `order_value` (the variable must be set up and visible in the project). Test orders appear in real data (GA4 and Contentsquare), so note them in the session log or filter them out.
 
 ## Smoke check
 
@@ -130,13 +130,13 @@ Flag store (M6):
 5. After the check, set the flags back to Phase A (see `FRICTION_FLAGS.md`).
 
 Security headers and consent (new, not yet verified live):
-1. **CSP**: open the live site with DevTools, click Accept, and check the console for "Content Security Policy" / "violates the following directive" errors. The CSP (`next.config.ts`) is enforced and deliberately loose; if the real GA or Contentsquare tag (or its collectors) is blocked, add the host to `script-src` / `connect-src`.
-2. **Tags after Accept** (also via `/?consent=accept`: the param disappears from the URL, `tw-consent=accepted` is set, tags load): before Accept, Network shows no `googletagmanager.com` or `contentsquare` requests; after Accept both load and `window._uxa` / `dataLayer` fill. After Decline, nothing loads.
+1. **CSP**: open the live site with DevTools (first without Accept, then after Accept), and check the console for "Content Security Policy" / "violates the following directive" errors. The CSP (`next.config.ts`) is enforced and deliberately loose; if the real GA or Contentsquare tag (or its collectors) is blocked, add the host to `script-src` / `connect-src`. `font-src` already allows `https://*.contentsquare.net` (survey fonts were blocked). Open risks to look for: no `frame-src` (Contentsquare survey/replay iframes would be blocked), fonts on `*.contentsquare.com`, and external stylesheets (`style-src` is `'self' 'unsafe-inline'`).
+2. **Tags and consent** (`/?consent=accept` strips the param and sets `tw-consent=accepted`): with no choice made, Network shows the `contentsquare` tag and `window._uxa` fills, but no `googletagmanager.com` and no `dataLayer` pushes; after Accept GA loads and `dataLayer` fills (`page_view` right after Accept). After Decline GA never loads; Contentsquare still does.
 3. **Headers**: `curl -sI https://tidewild-demo.vercel.app/` shows `x-content-type-options`, `referrer-policy`, `x-frame-options: DENY`, `permissions-policy`, `strict-transport-security`, `content-security-policy`; `/api/flags` still has its own `Cache-Control`.
-4. `/demo-controls` has no banner and no tags.
+4. `/demo-controls` has no banner and no tags (neither Contentsquare nor GA).
 
 Tracking (M5):
-1. **GA4** (click Accept first): open Realtime and DebugView for property `G-4PLJ26X0Y9`. Hard loads and SPA navigations should each show one page view (no doubles); a test purchase should appear once. `/demo-controls` sends nothing by design.
+1. **GA4** (click Accept first; Contentsquare needs no Accept): open Realtime and DebugView for property `G-4PLJ26X0Y9`. Hard loads and SPA navigations should each show one page view (no doubles); a test purchase should appear once. `/demo-controls` sends nothing by design.
 2. **Contentsquare** (no domain allow-list needed): confirm the tag loads (`t.contentsquare.net/uxa/506730812ef03.js`), consumes `_uxa` (virtual page views on route changes, `friction_*` and `order_value` dynamic variables).
 3. `?friction=` overrides work on the live URL.
 4. **Panel API not cached**: `curl -i -H "x-demo-pin: <PIN>" https://tidewild-demo.vercel.app/api/demo-controls/flags` must not be served from the CDN (no `x-vercel-cache: HIT`), and a toggle then Refresh in the panel shows the new value immediately.

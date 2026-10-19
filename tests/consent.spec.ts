@@ -3,11 +3,13 @@ import { expect, test } from "./fixtures";
 // No seeded consent: this file exercises the banner itself.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const TAG_SELECTOR = 'script[src*="googletagmanager"], script[src*="contentsquare"]';
-const tagCount = (page: import("@playwright/test").Page) => page.locator(TAG_SELECTOR).count();
+const GA_SELECTOR = 'script[src*="googletagmanager"]';
+const CS_SELECTOR = 'script[src*="contentsquare"]';
+const gaTags = (page: import("@playwright/test").Page) => page.locator(GA_SELECTOR).count();
+const csTags = (page: import("@playwright/test").Page) => page.locator(CS_SELECTOR).count();
 
 test.describe("cookie consent", () => {
-  test("banner shows, no tags or requests before consent", async ({ page, csRequests, gaRequests }) => {
+  test("banner shows; Contentsquare loads, Google Analytics does not, before consent", async ({ page, csRequests, gaRequests }) => {
     await page.goto("/");
     const banner = page.getByTestId("cookie-banner");
     await expect(banner).toBeVisible();
@@ -18,8 +20,9 @@ test.describe("cookie consent", () => {
     // Not stealing focus on load.
     expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
     await page.waitForTimeout(800);
-    expect(await tagCount(page)).toBe(0);
-    expect(csRequests).toHaveLength(0);
+    await expect.poll(() => csTags(page)).toBeGreaterThan(0);
+    await expect.poll(() => csRequests.length).toBeGreaterThan(0);
+    expect(await gaTags(page)).toBe(0);
     expect(gaRequests).toHaveLength(0);
     expect(await page.evaluate(() => "dataLayer" in window || "gtag" in window)).toBe(false);
   });
@@ -33,21 +36,28 @@ test.describe("cookie consent", () => {
     }
   });
 
-  test("Accept loads both tags, hides the banner and persists", async ({ page, csRequests, gaRequests }) => {
+  test("Accept adds Google Analytics (Contentsquare already loaded), hides the banner and persists", async ({ page, csRequests, gaRequests }) => {
     await page.goto("/");
+    await expect.poll(() => csRequests.length).toBeGreaterThan(0);
+    expect(gaRequests).toHaveLength(0);
     await page.getByTestId("cookie-accept").click();
     await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
-    await expect.poll(() => tagCount(page)).toBeGreaterThanOrEqual(2);
-    await expect.poll(() => csRequests.length).toBeGreaterThan(0);
+    await expect.poll(() => gaTags(page)).toBeGreaterThan(0);
+    expect(await csTags(page)).toBeGreaterThan(0);
     await expect.poll(() => gaRequests.length).toBeGreaterThan(0);
+    // The GA page_view still fires right after Accept, exactly once.
+    await expect
+      .poll(() => page.evaluate(() => (window.dataLayer ?? []).filter((e) => (e as { event?: string }).event === "page_view").length))
+      .toBe(1);
     expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBe("accepted");
 
     await page.reload();
     await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
-    await expect.poll(() => tagCount(page)).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => gaTags(page)).toBeGreaterThan(0);
+    await expect.poll(() => csTags(page)).toBeGreaterThan(0);
   });
 
-  test("Decline keeps tags off and persists", async ({ page, csRequests, gaRequests }) => {
+  test("Decline keeps Google Analytics off, Contentsquare stays, and persists", async ({ page, csRequests, gaRequests }) => {
     await page.goto("/");
     await page.getByTestId("cookie-decline").click();
     await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
@@ -56,8 +66,9 @@ test.describe("cookie consent", () => {
     await page.goto("/category/all");
     await page.waitForTimeout(800);
     await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
-    expect(await tagCount(page)).toBe(0);
-    expect(csRequests).toHaveLength(0);
+    await expect.poll(() => csTags(page)).toBeGreaterThan(0);
+    expect(csRequests.length).toBeGreaterThan(0);
+    expect(await gaTags(page)).toBe(0);
     expect(gaRequests).toHaveLength(0);
     expect(await page.evaluate(() => "dataLayer" in window)).toBe(false);
   });
@@ -66,7 +77,8 @@ test.describe("cookie consent", () => {
     await page.goto("/demo-controls");
     await page.waitForTimeout(500);
     await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
-    expect(await tagCount(page)).toBe(0);
+    expect(await gaTags(page)).toBe(0);
+    expect(await csTags(page)).toBe(0);
     expect(csRequests).toHaveLength(0);
     expect(gaRequests).toHaveLength(0);
   });
@@ -79,7 +91,8 @@ test.describe("cookie consent", () => {
     }) => {
       await page.goto("/?consent=accept&friction=all:off");
       await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
-      await expect.poll(() => tagCount(page)).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => gaTags(page)).toBeGreaterThan(0);
+      await expect.poll(() => csTags(page)).toBeGreaterThan(0);
       await expect.poll(() => csRequests.length).toBeGreaterThan(0);
       await expect.poll(() => gaRequests.length).toBeGreaterThan(0);
       expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBe("accepted");
@@ -87,16 +100,17 @@ test.describe("cookie consent", () => {
       expect(new URL(page.url()).searchParams.get("friction")).toBe("all:off");
       await page.reload();
       await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
-      await expect.poll(() => tagCount(page)).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => gaTags(page)).toBeGreaterThan(0);
     });
 
-    test("decline keeps tags off", async ({ page, csRequests, gaRequests }) => {
+    test("decline keeps Google Analytics off, Contentsquare stays", async ({ page, csRequests, gaRequests }) => {
       await page.goto("/?consent=decline");
       await expect(page.getByTestId("cookie-banner")).toHaveCount(0);
       await page.waitForTimeout(800);
       expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBe("declined");
-      expect(await tagCount(page)).toBe(0);
-      expect(csRequests).toHaveLength(0);
+      await expect.poll(() => csTags(page)).toBeGreaterThan(0);
+      expect(csRequests.length).toBeGreaterThan(0);
+      expect(await gaTags(page)).toBe(0);
       expect(gaRequests).toHaveLength(0);
       expect(new URL(page.url()).searchParams.has("consent")).toBe(false);
     });
@@ -120,7 +134,8 @@ test.describe("cookie consent", () => {
       await page.goto("/demo-controls?consent=accept");
       await page.waitForTimeout(600);
       expect(await page.evaluate(() => localStorage.getItem("tw-consent"))).toBeNull();
-      expect(await tagCount(page)).toBe(0);
+      expect(await gaTags(page)).toBe(0);
+      expect(await csTags(page)).toBe(0);
       expect(csRequests).toHaveLength(0);
       expect(gaRequests).toHaveLength(0);
     });

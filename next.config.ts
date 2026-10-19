@@ -11,7 +11,7 @@ const CSP = [
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://www.googletagmanager.com https://*.contentsquare.net https://*.contentsquare.com https://*.clicktale.net`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://*.contentsquare.net",
   "connect-src 'self' https: wss:",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",

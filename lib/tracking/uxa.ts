@@ -1,5 +1,4 @@
 // Contentsquare (_uxa) helpers. Guarded: no-ops on the server and when the tag is disabled.
-import { hasConsent } from "@/lib/consent";
 import type { FlagKey, FrictionFlags } from "@/lib/config";
 import { FLAG_META } from "@/lib/config";
 import type { FrictionProfile } from "@/lib/flags/resolve";
@@ -13,7 +12,7 @@ export const CS_SRC = CS_TAG_ID ? `https://t.contentsquare.net/uxa/${CS_TAG_ID}.
 
 /** Push a command onto the _uxa queue (the tag replays it once loaded). */
 export function uxaPush(...command: unknown[]): void {
-  if (typeof window === "undefined" || !CS_ENABLED || !hasConsent()) return;
+  if (typeof window === "undefined" || !CS_ENABLED) return;
   (window._uxa = window._uxa || []).push(command);
 }
 

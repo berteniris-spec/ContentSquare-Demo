@@ -155,8 +155,8 @@ M4 also landed the deferred nice-to-haves: size-chip error border and sticky PDP
 
 Details and payloads: `TRACKING.md`. Code: `lib/tracking/*`, `components/tracking/*`.
 
-- **Contentsquare tag** and **GA4** (`G-4PLJ26X0Y9`) load on shop routes and 404 only after the visitor accepts the cookie banner, never on `/demo-controls`; both switchable by `NEXT_PUBLIC_*_ENABLED=false`.
-- **Virtual page views**: `_uxa trackPageview` on client route changes only (after the tag loaded); initial page view is the tag's own.
+- **Contentsquare tag** and **GA4** (`G-4PLJ26X0Y9`) load on shop routes and 404, never on `/demo-controls`. Contentsquare loads for every visitor with no consent; GA4 only after the visitor accepts the cookie banner; both switchable by `NEXT_PUBLIC_*_ENABLED=false`.
+- **Virtual page views**: `_uxa trackPageview` (no consent needed) on client route changes only (after the tag loaded); initial page view is the tag's own.
 - **Dynamic variables**: ten `friction_*` on every page view; `order_value` once on confirmation.
 - **dataLayer events**: `page_view`, `view_item` (PDP mount), `add_to_cart` (not when size missing/silentSize blocks), `remove_from_cart` (Remove only), `begin_checkout` (checkout mount, non-empty cart), `purchase` (once per order). Five ecommerce events are also sent to GA4; no manual GA `page_view`.
 - **`data-page-type`** on `<body>` for every route (`PageTypeSync`).
@@ -164,9 +164,9 @@ Details and payloads: `TRACKING.md`. Code: `lib/tracking/*`, `components/trackin
 
 ## Cookie consent and security headers
 
-- **Cookie banner** (`components/layout/CookieBanner.tsx`, `cookie-banner`, `cookie-accept`, `cookie-decline`): fixed bottom region "Cookie consent", Accept / Decline (44 px targets), does not take focus, pads the page so it never covers content. Choice persists in localStorage `tw-consent` (`lib/consent.ts`). Not shown on `/demo-controls`. No withdraw/change UI yet; pre-consent pages are not recorded. Details: `TRACKING.md`.
+- **Cookie banner** (`components/layout/CookieBanner.tsx`, `cookie-banner`, `cookie-accept`, `cookie-decline`): fixed bottom region "Cookie consent", Accept / Decline (44 px targets), does not take focus, pads the page so it never covers content. Choice persists in localStorage `tw-consent` (`lib/consent.ts`). Not shown on `/demo-controls`. Copy: "We use Google Analytics cookies to understand how this demo store is used. We also run Contentsquare to analyse sessions." It gates GA4 only; Contentsquare is recorded regardless. No withdraw/change UI yet. Details: `TRACKING.md`.
 - **Consent URL param**: `?consent=accept|decline|reset` sets or clears `tw-consent` once on mount (`applyConsentParam` in `lib/consent.ts`, called from `CookieBanner`), then is removed from the URL; `?friction=` etc. are kept; ignored on `/demo-controls`; invalid values ignored. Demo link: `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off`. Demo site: test orders are intentionally recorded as real data.
-- **Security headers** (`next.config.ts`): nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS and a deliberately loose enforced CSP. Live verification with the real tags pending (`DEPLOYMENT.md`).
+- **Security headers** (`next.config.ts`): nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS and a deliberately loose enforced CSP (`font-src` allows `https://*.contentsquare.net`; no `frame-src`, which may block Contentsquare survey/replay iframes). Live verification with the real tags pending (`DEPLOYMENT.md`).
 
 ## Live toggles and control panel (M6)
 

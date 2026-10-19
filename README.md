@@ -28,7 +28,7 @@ First Playwright run: `npx playwright install chromium`. Run the suites one at a
 
 ## Consent
 
-GA4 and Contentsquare load only after the visitor clicks Accept in the cookie banner (`lib/consent.ts`); `?consent=accept|decline|reset` sets the choice from a link (demo helper, e.g. `/?consent=accept&friction=all:off`). This is a demo site: sessions and test orders are intentionally recorded as real data. See `docs/TRACKING.md`.
+Contentsquare loads for every visitor with no consent (so its installation check passes); GA4 loads only after the visitor clicks Accept in the cookie banner (`lib/consent.ts`); `?consent=accept|decline|reset` sets the GA choice from a link (demo helper, e.g. `/?consent=accept&friction=all:off`). This is a demo site: sessions and test orders are intentionally recorded as real data. See `docs/TRACKING.md`.
 
 ## Friction flags
 

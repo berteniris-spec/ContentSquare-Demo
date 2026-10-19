@@ -10,23 +10,31 @@ import { frictionState, pushFrictionVariables, trackVirtualPageview } from "@/li
 
 /**
  * One page view per location (pathname + search) once flags are ready:
- * Contentsquare virtual page view (route changes only; the tag sends the first one itself),
- * friction dynamic variables, and the dataLayer page_view. Render inside <Suspense>.
+ * Contentsquare virtual page view + friction dynamic variables (no consent needed), and the
+ * dataLayer/GA page_view (consent required). Render inside <Suspense>.
  */
 export function RouteTracker() {
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const { flags, profile, ready } = useFlags();
   const { consent } = useConsent();
-  const last = useRef<string | null>(null);
+  const csLast = useRef<string | null>(null);
+  const gaLast = useRef<string | null>(null);
   const path = pathname + (search ? `?${search}` : "");
 
+  // Contentsquare: no consent needed. The tag sends the first page view itself.
   useEffect(() => {
-    if (!ready || consent !== "accepted" || last.current === path) return;
-    const initial = last.current === null;
-    last.current = path;
+    if (!ready || csLast.current === path) return;
+    const initial = csLast.current === null;
+    csLast.current = path;
     if (!initial) trackVirtualPageview(path);
     pushFrictionVariables(flags, profile);
+  }, [ready, path, flags, profile]);
+
+  // Google Analytics / dataLayer: only after Accept (also fires right after Accept for the current page).
+  useEffect(() => {
+    if (!ready || consent !== "accepted" || gaLast.current === path) return;
+    gaLast.current = path;
     track("page_view", {
       page_type: pathToPageType(pathname),
       page_path: path,

@@ -2,9 +2,17 @@
 
 Newest first. Each entry: decision, why, date.
 
+## 2026-10-19 - Contentsquare loads without consent (Option 1)
+
+1. **Contentsquare tag and all `_uxa` pushes load for every visitor; only Google Analytics stays behind the cookie banner.** Supersedes decision 1 of 2026-10-15 ("banner gates GA4 and Contentsquare"). `ContentsquareTag` and `uxaPush` no longer check consent; `RouteTracker` has a consent-free Contentsquare effect and a consent-gated GA `page_view` effect (fires right after Accept). Neither tag runs on `/demo-controls`.
+   Why: Contentsquare's installation check failed once the tag was gated behind the banner, and `?consent=accept` did not satisfy the verification; the tag must be detectable on a plain first visit.
+   Consequences: every visit is recorded in Contentsquare, Decline only disables GA, `?consent=` now only matters for GA. Banner copy: "We use Google Analytics cookies to understand how this demo store is used. We also run Contentsquare to analyse sessions." Contentsquare privacy settings should collect without a consent step.
+2. **CSP `font-src` now allows `https://*.contentsquare.net`** (survey fonts were blocked). Open risks to check in the live console: no `frame-src`, fonts on `*.contentsquare.com`, external stylesheets.
+3. **Traffic generator documented** (`scripts/traffic/`, `docs/TRAFFIC_GUIDE.md` section 9). The 2026-10-16 100-session live run hit a store with all flags ON (including `expressShippingError`), so it was phase B, not baseline. To do: reset panel to baseline, raise session cap 4 to 10 minutes, add a baseline preflight (not built), rerun.
+
 ## 2026-10-15 - Cookie consent, security headers, audit
 
-1. **Cookie consent banner gates GA4 and Contentsquare (reverses the earlier "no banner" answer, Q5).** `lib/consent.ts` (localStorage `tw-consent`), `components/layout/CookieBanner.tsx`; tags and `track`/`uxa` helpers no-op without Accept; `RouteTracker` waits. No banner or tags on `/demo-controls`.
+1. **(Contentsquare part superseded 2026-10-19) Cookie consent banner gates GA4 and Contentsquare (reverses the earlier "no banner" answer, Q5).** `lib/consent.ts` (localStorage `tw-consent`), `components/layout/CookieBanner.tsx`; tags and `track`/`uxa` helpers no-op without Accept; `RouteTracker` waits. No banner or tags on `/demo-controls`.
    Why: loading tracking cookies and session recording without consent is not acceptable for a public site.
    Consequences: pre-consent pages are not recorded; Decline = never tracked; no withdraw/change UI yet (accepted for now). Every Playwright config seeds `tw-consent=accepted` (`tests/consent-state.ts`) so existing suites are unchanged; `tests/consent.spec.ts` covers the banner.
 2. **Security headers in `next.config.ts`:** nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, Permissions-Policy (camera, microphone, geolocation, payment off), HSTS (2 years, includeSubDomains), and an **enforced but deliberately loose CSP** (`'unsafe-inline'` scripts/styles, `connect-src 'self' https: wss:`, GA and Contentsquare hosts allowed).

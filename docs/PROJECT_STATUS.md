@@ -1,10 +1,13 @@
 # Project status
 
-Last updated: 2026-10-15
+Last updated: 2026-10-19
 
 ## Latest (post-M7 additions, uncommitted)
 
-- **Cookie consent banner** gates GA4 and Contentsquare (`lib/consent.ts`, `components/layout/CookieBanner.tsx`, localStorage `tw-consent`). Tags and tracking helpers no-op without Accept; `RouteTracker` waits; no banner or tags on `/demo-controls`. Pre-consent pages are not recorded; no withdraw/change UI yet. Playwright configs seed consent (`tests/consent-state.ts`); `tests/consent.spec.ts` added.
+- **2026-10-19 "Option 1": Contentsquare no longer needs consent.** The tag and all `_uxa` pushes (virtual page views, `friction_*`, `friction_profile`, `order_value`) load for every visitor, because Contentsquare's installation check failed once the tag was behind the banner (`?consent=accept` did not satisfy it). Google Analytics stays behind Accept (tag, dataLayer, `page_view`, which fires right after Accept). Neither runs on `/demo-controls`. Banner copy updated; CSP `font-src` now allows `https://*.contentsquare.net`. Code: `ContentsquareTag.tsx`, `RouteTracker.tsx` (two effects), `uxa.ts`, `CookieBanner.tsx`, `next.config.ts`. Tests: main 529/0/13, panel 74/0/2, defaults 18, variants 8 + 2 skipped each (dev 10). **Open CSP risks to check in the live console:** no `frame-src` (survey/replay iframes), fonts on `*.contentsquare.com`, external stylesheets. **Owner next:** commit and deploy, then re-run Contentsquare's installation check on a plain visit.
+- **Traffic generator** `scripts/traffic/` (`npm run traffic`; see `docs/TRAFFIC_GUIDE.md` section 9). 2026-10-16 100-session live run was NOT a clean baseline: all flags were ON including `expressShippingError` (set via the panel 2026-10-15 ~08:34 UTC), so it was effectively phase B; 40 of 100 ended as `error` (mostly the 4-minute session cap), 4 purchases; sessions are in Contentsquare project 1083504, separable by `friction_profile`. **To do:** reset the panel to baseline, raise the session cap to 10 minutes, add a baseline preflight to the script (not built), rerun.
+- (Superseded for Contentsquare by the 2026-10-19 item) 
+- **Cookie consent banner** gated GA4 and Contentsquare (now GA4 only; `lib/consent.ts`, `components/layout/CookieBanner.tsx`, localStorage `tw-consent`). Tags and tracking helpers no-op without Accept; `RouteTracker` waits; no banner or tags on `/demo-controls`. Pre-consent pages are not recorded; no withdraw/change UI yet. Playwright configs seed consent (`tests/consent-state.ts`); `tests/consent.spec.ts` added.
 - **`?consent=accept|decline|reset` URL param** (`applyConsentParam` in `lib/consent.ts`, called from `CookieBanner`): demo links like `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off` record sessions without the banner click. Demo site: test orders are intentionally recorded as real data. Docs updated; uncommitted.
 - **Security headers** in `next.config.ts` (nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS, loose enforced CSP); `tests/headers.spec.ts`. **To verify on the live site:** real GA and Contentsquare under the CSP (console errors, tags loading after Accept).
 - **Checkout expiry auto-slash** (`formatExpiry` in `CheckoutForm.tsx`; commit `f0b8fbf`).
@@ -125,10 +128,12 @@ Git: initial commit `a3850bc` (through M3), then `64797dc` (M3 review fixes and 
 1. Owner: work through "Manual steps for the owner" above (commit, deploy, Contentsquare settings check, post-deploy checks, PIN hygiene).
 2. Optional follow-ups (not required for the demo):
    - Mobile PDP: Add to cart sits at about y 996; gallery change `aspect-square lg:aspect-[4/5]` in `components/product/ProductGallery.tsx` would save about 90 px.
-   - Optional: `scripts/traffic/` persona script (not built; `docs/TRAFFIC_GUIDE.md`), `select-none` on `DecoyBanner`, "Reset to defaults" button (not applied by design decision), ON/OFF word size in `FlagRow`.
+   - Optional: `select-none` on `DecoyBanner`, "Reset to defaults" button (not applied by design decision), ON/OFF word size in `FlagRow`.
 
 ## Change log
 
+- 2026-10-19: Option 1: Contentsquare tag and `_uxa` pushes load without consent; GA4 stays behind Accept; banner copy and CSP `font-src` updated; traffic generator and 2026-10-16 run documented. Docs: TRACKING, TRAFFIC_GUIDE, DEPLOYMENT, DECISIONS, ARCHITECTURE, FEATURES, PROJECT_STATUS, CLAUDE.md, README. Tests: main 529/0/13, panel 74/0/2, defaults 18, variants 8+2 skipped each, dev 10. Not committed.
+- 2026-10-16: Traffic generator `scripts/traffic/` run live with 100 sessions against a non-baseline store (see Latest).
 - 2026-10-15: Added `?consent=accept|decline|reset` URL param (docs: TRACKING, TRAFFIC_GUIDE, DEMO_SCRIPT, DEPLOYMENT, DECISIONS, ARCHITECTURE, FEATURES); main e2e now 529/0/13.
 - 2026-10-15: Consent banner gating GA4 + Contentsquare, security headers + loose CSP, expiry auto-slash, npm audit review (0 prod vulns; 5 dev-only highs deferred). Tests: main 519/0/13, panel 74/0/2, defaults 18, variants 8+2 skipped each, dev 10. Docs updated. Not committed or deployed; live CSP/tag check pending.
 - 2026-10-15: Panel focus-drop fixed (`aria-disabled` on All ON / All OFF / Only fix errors / Refresh; `Button.tsx` `aria-disabled:` styles; 8 `test.fail()` markers removed). Tester PASS: test:m6 74 passed / 0 failed / 2 skipped (was 66), test:e2e 499/0/7, test:defaults 18, test:variants 8 per variant and 10 in dev, lint 0 warnings, tsc and build pass. Double activation sends exactly 1 POST and 1 history entry. Trade-off: aria-disabled buttons stay focusable and are announced as unavailable.

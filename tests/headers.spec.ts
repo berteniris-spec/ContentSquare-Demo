@@ -19,6 +19,7 @@ test.describe("security headers", () => {
       expect(csp).toContain("default-src 'self'");
       expect(csp).toContain("https://www.googletagmanager.com");
       expect(csp).toContain("https://*.contentsquare.net");
+      expect(csp).toMatch(/font-src[^;]*contentsquare\.net/);
       expect(csp).toContain("frame-ancestors 'none'");
       expect(csp).toContain("object-src 'none'");
     });

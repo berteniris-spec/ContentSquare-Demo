@@ -8,7 +8,7 @@ import { isUntrackedPath } from "@/lib/tracking/ga";
 const BUTTON =
   "inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink hover:border-ink hover:bg-sunken sm:flex-none";
 
-/** Analytics consent. Tags only load after Accept (see ContentsquareTag / GoogleAnalyticsTag). */
+/** Analytics consent. Google Analytics only loads after Accept (GoogleAnalyticsTag); Contentsquare loads for everyone. */
 export function CookieBanner() {
   const pathname = usePathname();
   const { consent, ready } = useConsent();
@@ -51,8 +51,8 @@ export function CookieBanner() {
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
         <p className="text-sm text-ink-2 sm:flex-1">
-          We use cookies for analytics (Google Analytics and Contentsquare) to understand how the store is used. This is a
-          demo store.
+          We use Google Analytics cookies to understand how this demo store is used. We also run Contentsquare to analyse
+          sessions.
         </p>
         <div className="flex gap-3">
           <button type="button" data-testid="cookie-decline" className={BUTTON} onClick={() => setConsent("declined")}>

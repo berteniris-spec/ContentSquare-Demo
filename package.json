@@ -10,7 +10,8 @@
     "test:e2e": "playwright test",
     "test:m6": "playwright test -c playwright.m6.config.ts",
     "test:variants": "for v in disabled override invalid dev; do VARIANT=$v playwright test -c playwright.variants.config.ts || exit 1; done",
-    "test:defaults": "playwright test -c playwright.defaults.config.ts"
+    "test:defaults": "playwright test -c playwright.defaults.config.ts",
+    "traffic": "tsx scripts/traffic/index.ts"
   },
   "dependencies": {
     "next": "16.4.0",
@@ -26,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
