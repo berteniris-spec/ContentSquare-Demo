@@ -9,7 +9,7 @@ import { withConsent } from "./entries";
 import { AbruptEnd, S } from "./session";
 
 const DEFAULT_URL = "https://tidewild-demo.vercel.app";
-const SESSION_TIMEOUT_MS = 4 * 60 * 1000;
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000;
 
 interface Options {
   url: string;
@@ -22,6 +22,7 @@ interface Options {
   dry: boolean;
   live: boolean;
   pace: number;
+  skipPreflight: boolean;
 }
 
 function fail(msg: string): never {
@@ -40,6 +41,7 @@ function parseArgs(argv: string[]): Options {
     dry: false,
     live: false,
     pace: 1,
+    skipPreflight: false,
   };
   const val = (i: number, name: string) => {
     const v = argv[i + 1];
@@ -66,6 +68,7 @@ function parseArgs(argv: string[]): Options {
       case "--headless": o.headless = true; break;
       case "--dry": o.dry = true; break;
       case "--live": o.live = true; break;
+      case "--skip-preflight": o.skipPreflight = true; break;
       default: fail(`unknown argument ${a}`);
     }
   }
@@ -192,7 +195,7 @@ async function runSession(browser: Browser, o: Options, chromeMajor: string, p: 
     result.outcome = await Promise.race([
       body(),
       new Promise<string>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("session timeout (4 min)")), SESSION_TIMEOUT_MS);
+        timer = setTimeout(() => reject(new Error("session timeout (10 min)")), SESSION_TIMEOUT_MS);
       }),
     ]);
   } catch (e) {
@@ -229,6 +232,34 @@ async function launch(headless: boolean): Promise<Browser> {
   return chromium.launch({ headless, args });
 }
 
+/**
+ * Baseline preflight: reads the public global flag layer and refuses to run when the store is in the
+ * express_error or fixed state. Flags the store does not pin fall back to env/code defaults (baseline),
+ * so only an explicit expressShippingError ON or postcodeValidation OFF is a problem.
+ */
+async function preflightBaseline(url: string): Promise<void> {
+  let body: { configured?: boolean; error?: boolean; flags?: Record<string, boolean> };
+  try {
+    const res = await fetch(`${url}/api/flags`, { headers: { "Cache-Control": "no-cache" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    body = await res.json();
+  } catch (e) {
+    fail(`baseline preflight could not read ${url}/api/flags (${(e as Error).message}). Fix that, or re-run with --skip-preflight.`);
+  }
+  if (body.error) fail("baseline preflight: the flag store returned an error. Re-run later, or with --skip-preflight.");
+  const flags = body.flags ?? {};
+  const problems: string[] = [];
+  if (flags.expressShippingError === true) problems.push("expressShippingError is ON (profile express_error)");
+  if (flags.postcodeValidation === false) problems.push("postcodeValidation is OFF (profile fixed)");
+  if (problems.length) {
+    fail(
+      `not the baseline state: ${problems.join("; ")}.\n` +
+        "Set the panel to baseline (All ON, then expressShippingError OFF) and wait about 60 s for the CDN, or re-run with --skip-preflight.",
+    );
+  }
+  console.log("Preflight: flag store is in the baseline state.");
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
@@ -249,6 +280,8 @@ async function main() {
     console.log("\n" + [...counts].map(([k, v]) => `${k}: ${v}`).join(", "));
     return;
   }
+
+  if (!o.skipPreflight) await preflightBaseline(o.url);
 
   const outDir = path.join(__dirname, "out");
   mkdirSync(outDir, { recursive: true });

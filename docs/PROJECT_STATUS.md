@@ -2,10 +2,10 @@
 
 Last updated: 2026-10-19
 
-## Latest (post-M7 additions, uncommitted)
+## Latest (post-M7 additions; committed through `6b43715`)
 
 - **2026-10-19 "Option 1": Contentsquare no longer needs consent.** The tag and all `_uxa` pushes (virtual page views, `friction_*`, `friction_profile`, `order_value`) load for every visitor, because Contentsquare's installation check failed once the tag was behind the banner (`?consent=accept` did not satisfy it). Google Analytics stays behind Accept (tag, dataLayer, `page_view`, which fires right after Accept). Neither runs on `/demo-controls`. Banner copy updated; CSP `font-src` now allows `https://*.contentsquare.net`. Code: `ContentsquareTag.tsx`, `RouteTracker.tsx` (two effects), `uxa.ts`, `CookieBanner.tsx`, `next.config.ts`. Tests: main 529/0/13, panel 74/0/2, defaults 18, variants 8 + 2 skipped each (dev 10). **Open CSP risks to check in the live console:** no `frame-src` (survey/replay iframes), fonts on `*.contentsquare.com`, external stylesheets. **Owner next:** commit and deploy, then re-run Contentsquare's installation check on a plain visit.
-- **Traffic generator** `scripts/traffic/` (`npm run traffic`; see `docs/TRAFFIC_GUIDE.md` section 9). 2026-10-16 100-session live run was NOT a clean baseline: all flags were ON including `expressShippingError` (set via the panel 2026-10-15 ~08:34 UTC), so it was effectively phase B; 40 of 100 ended as `error` (mostly the 4-minute session cap), 4 purchases; sessions are in Contentsquare project 1083504, separable by `friction_profile`. **To do:** reset the panel to baseline, raise the session cap to 10 minutes, add a baseline preflight to the script (not built), rerun.
+- **Traffic generator** `scripts/traffic/` (`npm run traffic`; see `docs/TRAFFIC_GUIDE.md` section 9). 2026-10-16 100-session live run was NOT a clean baseline: all flags were ON including `expressShippingError` (set via the panel 2026-10-15 ~08:34 UTC), so it was effectively phase B; 40 of 100 ended as `error` (mostly the 4-minute session cap), 4 purchases; sessions are in Contentsquare project 1083504, separable by `friction_profile`. **Done 2026-10-23:** session cap raised to 10 minutes; baseline preflight added (`--skip-preflight` bypasses). **To do:** reset the panel to baseline, rerun.
 - (Superseded for Contentsquare by the 2026-10-19 item) 
 - **Cookie consent banner** gated GA4 and Contentsquare (now GA4 only; `lib/consent.ts`, `components/layout/CookieBanner.tsx`, localStorage `tw-consent`). Tags and tracking helpers no-op without Accept; `RouteTracker` waits; no banner or tags on `/demo-controls`. Pre-consent pages are not recorded; no withdraw/change UI yet. Playwright configs seed consent (`tests/consent-state.ts`); `tests/consent.spec.ts` added.
 - **`?consent=accept|decline|reset` URL param** (`applyConsentParam` in `lib/consent.ts`, called from `CookieBanner`): demo links like `https://tidewild-demo.vercel.app/?consent=accept&friction=all:off` record sessions without the banner click. Demo site: test orders are intentionally recorded as real data. Docs updated; uncommitted.
@@ -29,7 +29,7 @@ Last updated: 2026-10-19
 
 **All milestones M1-M7 are done. Only the owner's manual steps below remain.**
 
-Git: initial commit `a3850bc` (through M3), then `64797dc` (M3 review fixes and docs). **Nothing committed since**: M4-M7 work, the Vercel docs and plan changes are uncommitted in the working tree.
+Git: M4-M7, consent banner and the no-consent Contentsquare change are committed (latest `6b43715`). Untracked: `.agents/`, `.claude/skills/`, `skills-lock.json` (Upstash integration).
 
 ### Deployment (Vercel)
 

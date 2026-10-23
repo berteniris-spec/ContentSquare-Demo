@@ -8,7 +8,7 @@ Newest first. Each entry: decision, why, date.
    Why: Contentsquare's installation check failed once the tag was gated behind the banner, and `?consent=accept` did not satisfy the verification; the tag must be detectable on a plain first visit.
    Consequences: every visit is recorded in Contentsquare, Decline only disables GA, `?consent=` now only matters for GA. Banner copy: "We use Google Analytics cookies to understand how this demo store is used. We also run Contentsquare to analyse sessions." Contentsquare privacy settings should collect without a consent step.
 2. **CSP `font-src` now allows `https://*.contentsquare.net`** (survey fonts were blocked). Open risks to check in the live console: no `frame-src`, fonts on `*.contentsquare.com`, external stylesheets.
-3. **Traffic generator documented** (`scripts/traffic/`, `docs/TRAFFIC_GUIDE.md` section 9). The 2026-10-16 100-session live run hit a store with all flags ON (including `expressShippingError`), so it was phase B, not baseline. To do: reset panel to baseline, raise session cap 4 to 10 minutes, add a baseline preflight (not built), rerun.
+3. **Traffic generator documented** (`scripts/traffic/`, `docs/TRAFFIC_GUIDE.md` section 9). The 2026-10-16 100-session live run hit a store with all flags ON (including `expressShippingError`), so it was phase B, not baseline. Since done: session cap raised 4 to 10 minutes, baseline preflight added. To do: reset panel to baseline, rerun.
 
 ## 2026-10-15 - Cookie consent, security headers, audit
 

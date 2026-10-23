@@ -106,7 +106,7 @@ npm run traffic -- --live --sessions 100 --concurrency 2 --spread-minutes 240 --
 
 Options: `--url`, `--sessions` (100), `--concurrency` (2, max 3), `--spread-minutes` (0), `--headless` (default headed), `--seed`, `--only <bouncer|browser|promo|rage|silent|mobile|postcode|express|happy>`, `--dry`, `--live` (required for any non-localhost URL), `--pace` (timing multiplier, default 1; use 0.15 only for local tests), `--friction baseline` (only value). The log is written to `scripts/traffic/out/session-log-<timestamp>.csv` (git-ignored, columns as in section 10). `express` victims only fail when the panel has `expressShippingError` ON (logged as "checkout stuck"). Live runs create real sessions, GA4 data and test orders.
 
-Details: entry via `?consent=accept` (`entries.ts`); personas in `personas.ts` (shares per section 6), device/locale profiles in `profiles.ts`, seeded RNG in `rng.ts` (`--seed` makes the plan reproducible), session steps in `session.ts`, orchestration in `index.ts`. Any URL that is not localhost needs `--live`. Each session has a hard cap (`SESSION_TIMEOUT_MS` in `scripts/traffic/index.ts`, currently 4 minutes); a session that hits the cap is logged as `error`. The script has no baseline preflight yet (not built): it does not check the panel state before running.
+Details: entry via `?consent=accept` (`entries.ts`); personas in `personas.ts` (shares per section 6), device/locale profiles in `profiles.ts`, seeded RNG in `rng.ts` (`--seed` makes the plan reproducible), session steps in `session.ts`, orchestration in `index.ts`. Any URL that is not localhost needs `--live`. Each session has a hard cap (`SESSION_TIMEOUT_MS` in `scripts/traffic/index.ts`, currently 10 minutes); a session that hits the cap is logged as `error`. Before a live run the script reads the public `/api/flags` and refuses to start if `expressShippingError` is ON or `postcodeValidation` is OFF (not baseline); `--skip-preflight` bypasses it. The deployed site must include `/api/flags` (M6+).
 
 ### Run log: 2026-10-16, 100 live sessions (not a clean baseline)
 
@@ -114,7 +114,7 @@ Details: entry via `?consent=accept` (`entries.ts`); personas in `personas.ts` (
 - The store had **ALL flags ON including `expressShippingError`** (set via the panel on 2026-10-15 about 08:34 UTC), so the run was effectively **phase B, not the baseline** the script assumes.
 - Result: 40 of 100 ended as `error`, mostly from the 4-minute session cap; 4 purchases.
 - The sessions are in Contentsquare project 1083504 and can be separated by the `friction_profile` dynamic variable.
-- To do: reset the panel to baseline (phase A, `expressShippingError` OFF), raise the session cap to 10 minutes, add a baseline preflight to the script (not built yet), then rerun.
+- Done since: session cap raised to 10 minutes and a baseline preflight added. To do: deploy, reset the panel to baseline (phase A, `expressShippingError` OFF), then rerun.
 
 ## 10. Session log template
 
